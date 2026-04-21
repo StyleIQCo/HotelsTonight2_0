@@ -10,7 +10,7 @@ const AGREEMENT_TEXT = `HOTEL PARTNER AGREEMENT
 Last updated: April 21, 2026
 
 This Hotel Partner Agreement ("Agreement") is entered into as of the date of electronic
-acceptance ("Effective Date") between HotelsTonight, Inc., a Delaware corporation
+acceptance ("Effective Date") between NightDrop, Inc., a Delaware corporation
 ("Platform"), and the hotel property identified in the accompanying application form
 ("Partner Property" or "Partner").
 
@@ -42,7 +42,7 @@ acceptance ("Effective Date") between HotelsTonight, Inc., a Delaware corporatio
         through the Service on any given night, including zero.
    4.2  Once a room is confirmed to a guest, Partner agrees to honor that reservation
         regardless of subsequent changes in occupancy demand.
-   4.3  Partner agrees not to walk (relocate) a HotelsTonight guest to an alternative
+   4.3  Partner agrees not to walk (relocate) a NightDrop guest to an alternative
         property without prior Platform approval, except in cases of force majeure or
         property emergency.
 
@@ -128,7 +128,7 @@ acceptance ("Effective Date") between HotelsTonight, Inc., a Delaware corporatio
     state law.
 
 ──────────────────────────────────────────────────────────────────
-HotelsTonight, Inc.
+NightDrop, Inc.
 Authorized Signatory: Sarah Chen, CEO
 Date: April 21, 2026
 ──────────────────────────────────────────────────────────────────`;
@@ -322,7 +322,7 @@ function StepPreview({ data, onNext, onBack }) {
             <span>${gross.toLocaleString()}/mo</span>
           </div>
           <div className="preview-row">
-            <span>HotelsTonight commission (15%)</span>
+            <span>NightDrop commission (15%)</span>
             <span style={{ color: 'var(--accent)' }}>−${ourCut.toLocaleString()}/mo</span>
           </div>
           <div className="preview-row preview-row-total">
@@ -394,7 +394,7 @@ function StepAgreement({ data, setData, onSubmit, onBack, loading }) {
         <label className="check-row">
           <input type="checkbox" checked={checked2} onChange={(e) => setChecked2(e.target.checked)} />
           <span>
-            I have read and understand the HotelsTonight Hotel Partner Agreement and agree
+            I have read and understand the NightDrop Hotel Partner Agreement and agree
             to be legally bound by its terms.
           </span>
         </label>

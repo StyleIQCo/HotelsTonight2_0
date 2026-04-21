@@ -6,8 +6,8 @@ export default function Nav() {
     <header className="nav">
       <div className="container nav-inner">
         <Link to="/" className="brand">
-          <span className="brand-logo">HT</span>
-          HotelsTonight 2.0
+          <span className="brand-logo">ND</span>
+          NightDrop
         </Link>
         <nav className="nav-links">
           <NavLink to="/" end className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>

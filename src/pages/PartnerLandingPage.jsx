@@ -17,7 +17,7 @@ const HOW_IT_WORKS = [
   {
     icon: '🔗',
     title: 'We list your rooms',
-    body: 'Your property goes live on HotelsTonight within 2 business days. Guests within miles of you see your rooms, your photos, your prices — in real time.',
+    body: 'Your property goes live on NightDrop within 2 business days. Guests within miles of you see your rooms, your photos, your prices — in real time.',
   },
   {
     icon: '💸',
@@ -27,7 +27,7 @@ const HOW_IT_WORKS = [
 ];
 
 const COMPARISON = [
-  { platform: 'HotelsTonight', commission: '15%', same_day: '✅', real_time: '✅', payout: '30 days' },
+  { platform: 'NightDrop', commission: '15%', same_day: '✅', real_time: '✅', payout: '30 days' },
   { platform: 'Expedia / Hotels.com', commission: '18–22%', same_day: '❌', real_time: '❌', payout: '30–45 days' },
   { platform: 'Booking.com', commission: '15–25%', same_day: '❌', real_time: '❌', payout: '30 days' },
   { platform: 'Airbnb', commission: '3% host', same_day: '✅', real_time: '✅', payout: '1 day after checkin' },
@@ -35,7 +35,7 @@ const COMPARISON = [
 
 const TESTIMONIALS = [
   {
-    quote: "We were leaving 30 rooms empty every Friday. HotelsTonight fills 80% of them now. It's become a meaningful revenue line — and we set our own floor rate.",
+    quote: "We were leaving 30 rooms empty every Friday. NightDrop fills 80% of them now. It's become a meaningful revenue line — and we set our own floor rate.",
     name: 'Margaux D.',
     title: 'Director of Revenue, Boutique Hotel Group',
   },
@@ -54,7 +54,7 @@ const TESTIMONIALS = [
 const FAQS = [
   {
     q: 'Is there an exclusivity requirement?',
-    a: 'No. You can list on Expedia, Booking.com, or any other platform simultaneously. We only ask that your HotelsTonight rate is at least 10% below your best available rate after 6 PM.'
+    a: 'No. You can list on Expedia, Booking.com, or any other platform simultaneously. We only ask that your NightDrop rate is at least 10% below your best available rate after 6 PM.'
   },
   {
     q: 'What if a guest cancels?',
@@ -70,7 +70,7 @@ const FAQS = [
   },
   {
     q: 'Do I need to list all my rooms?',
-    a: 'No. You control exactly how many rooms enter the HotelsTonight pool each night via your dashboard, down to zero if you prefer.'
+    a: 'No. You control exactly how many rooms enter the NightDrop pool each night via your dashboard, down to zero if you prefer.'
   },
 ];
 
@@ -88,7 +88,7 @@ function CommissionCalculator() {
     <div className="calc-card">
       <h3 style={{ marginTop: 0 }}>Revenue calculator</h3>
       <p style={{ color: 'var(--muted)', fontSize: 14, margin: '0 0 20px' }}>
-        Estimate what HotelsTonight could add to your monthly revenue.
+        Estimate what NightDrop could add to your monthly revenue.
       </p>
 
       <div className="field">
@@ -110,7 +110,7 @@ function CommissionCalculator() {
           <span>${gross.toLocaleString()}</span>
         </div>
         <div className="calc-row">
-          <span>HotelsTonight commission (15%)</span>
+          <span>NightDrop commission (15%)</span>
           <span style={{ color: 'var(--accent)' }}>−${ourCut.toLocaleString()}</span>
         </div>
         <div className="calc-row calc-total">
@@ -152,7 +152,7 @@ export default function PartnerLandingPage() {
           Turn empty rooms into<br />guaranteed revenue — every night.
         </h1>
         <p className="partner-hero-sub">
-          HotelsTonight connects your unsold inventory with price-conscious travelers in real time.
+          NightDrop connects your unsold inventory with price-conscious travelers in real time.
           You set the floor. We fill the rooms. You keep 85%.
         </p>
         <div className="partner-hero-ctas">
@@ -211,9 +211,9 @@ export default function PartnerLandingPage() {
               </thead>
               <tbody>
                 {COMPARISON.map((row) => (
-                  <tr key={row.platform} className={row.platform === 'HotelsTonight' ? 'ht-row' : ''}>
-                    <td style={{ fontWeight: row.platform === 'HotelsTonight' ? 700 : 400 }}>{row.platform}</td>
-                    <td style={{ color: row.platform === 'HotelsTonight' ? 'var(--good)' : 'inherit' }}>{row.commission}</td>
+                  <tr key={row.platform} className={row.platform === 'NightDrop' ? 'ht-row' : ''}>
+                    <td style={{ fontWeight: row.platform === 'NightDrop' ? 700 : 400 }}>{row.platform}</td>
+                    <td style={{ color: row.platform === 'NightDrop' ? 'var(--good)' : 'inherit' }}>{row.commission}</td>
                     <td>{row.same_day}</td>
                     <td>{row.real_time}</td>
                     <td>{row.payout}</td>

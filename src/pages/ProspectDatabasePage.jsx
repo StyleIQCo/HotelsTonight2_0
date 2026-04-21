@@ -11,7 +11,7 @@ function generateEmail(p) {
 
 Hi ${p.contactName ? p.contactName.split(' ')[0] : '[Name]'},
 
-My name is [Your Name] and I'm reaching out from HotelsTonight — a last-minute booking platform connecting travelers with same-day hotel rooms in ${p.city}.
+My name is [Your Name] and I'm reaching out from NightDrop — a last-minute booking platform connecting travelers with same-day hotel rooms in ${p.city}.
 
 I came across ${p.name} and was genuinely impressed by ${p.publicRating.split('·')[0].trim().toLowerCase()}. We work with independent boutique hotels to fill unsold rooms each evening at rates the hotel controls, with zero setup fee and an 85/15 commission split in your favor.
 
@@ -28,9 +28,9 @@ Would you be open to a quick 15-minute call this week to explore whether it's a 
 
 Best,
 [Your Name]
-HotelsTonight
+NightDrop
 [Your phone number]
-https://hotelstonight.com/for-hotels`;
+https://nightdrop.com/for-hotels`;
 }
 
 // ── Prospect detail side panel ─────────────────────────────────────────────

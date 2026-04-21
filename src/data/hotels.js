@@ -1,4 +1,4 @@
-// Mock partner hotel inventory for the HotelsTonight 2.0 demo.
+// Mock partner hotel inventory for the NightDrop demo.
 //
 // The roster is intentionally upscale — boutique, design-forward, and
 // luxury properties in the six launch markets: Bellevue (WA), Seattle,

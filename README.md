@@ -1,6 +1,6 @@
-# HotelsTonight 2.0
+# NightDrop
 
-A HotelsTonight-style web app: partner hotels discount empty rooms as check-in time approaches, and last-minute travelers grab them. Built with Vite + React, Stripe test-mode for payments, and a dynamic discount engine that reacts to time-of-day and vacancy.
+A NightDrop-style web app: partner hotels discount empty rooms as check-in time approaches, and last-minute travelers grab them. Built with Vite + React, Stripe test-mode for payments, and a dynamic discount engine that reacts to time-of-day and vacancy.
 
 ## What's in the box
 
