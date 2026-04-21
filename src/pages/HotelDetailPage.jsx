@@ -1,15 +1,80 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../store.jsx';
 import DirectionsButtons from '../components/DirectionsButtons.jsx';
 import HotelMap from '../components/HotelMap.jsx';
-import { getPerkBadges } from '../lib/pricing.js';
+import MarketIntelPanel from '../components/MarketIntelPanel.jsx';
+import PriceSparkline from '../components/PriceSparkline.jsx';
+import { getPerkBadges, makeRoomTypes } from '../lib/pricing.js';
+
+function PhotoGallery({ images, name }) {
+  const [idx, setIdx] = useState(0);
+  if (!images || images.length === 0) return null;
+  const prev = () => setIdx((i) => (i - 1 + images.length) % images.length);
+  const next = () => setIdx((i) => (i + 1) % images.length);
+
+  return (
+    <div className="gallery">
+      <div
+        className="gallery-main"
+        style={{ backgroundImage: `url(${images[idx]})` }}
+        role="img"
+        aria-label={`${name} photo ${idx + 1} of ${images.length}`}
+      />
+      <button className="gallery-arrow gallery-prev" onClick={prev} aria-label="Previous photo">‹</button>
+      <button className="gallery-arrow gallery-next" onClick={next} aria-label="Next photo">›</button>
+      <div className="gallery-dots">
+        {images.map((_, i) => (
+          <button
+            key={i}
+            className={`gallery-dot${i === idx ? ' active' : ''}`}
+            onClick={() => setIdx(i)}
+            aria-label={`Photo ${i + 1}`}
+          />
+        ))}
+      </div>
+      <div className="gallery-count">{idx + 1} / {images.length}</div>
+    </div>
+  );
+}
+
+function RoomTypePicker({ roomTypes, selected, pricing, onChange }) {
+  return (
+    <div>
+      <h3 style={{ marginTop: 0, marginBottom: 12 }}>Choose your room</h3>
+      <div className="room-type-grid">
+        {roomTypes.map((rt) => {
+          const adjustedFinal = Math.round(pricing.final * rt.multiplier);
+          const isSelected = selected === rt.id;
+          return (
+            <button
+              key={rt.id}
+              className={`room-type-card${isSelected ? ' selected' : ''}`}
+              onClick={() => onChange(rt.id)}
+            >
+              <div className="room-type-name">{rt.name}</div>
+              <div className="room-type-detail">{rt.beds}</div>
+              <div className="room-type-detail">{rt.sqft.toLocaleString()} sq ft · up to {rt.maxGuests} guests</div>
+              <div className="room-type-desc">{rt.description}</div>
+              <div className="room-type-price">${adjustedFinal}<span style={{ fontSize: 12, color: 'var(--muted)' }}>/night</span></div>
+              {rt.multiplier > 1 && (
+                <div className="room-type-mult">+{Math.round((rt.multiplier - 1) * 100)}% vs standard</div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default function HotelDetailPage() {
   const { id } = useParams();
   const nav = useNavigate();
-  const { hotels, userLocation, favorites, toggleFavorite } = useApp();
+  const { hotels, userLocation, favorites, toggleFavorite, bookingDate } = useApp();
   const hotel = hotels.find((h) => h.id === id);
+
+  const [selectedRoom, setSelectedRoom] = useState('standard');
 
   if (!hotel) {
     return (
@@ -21,14 +86,27 @@ export default function HotelDetailPage() {
   }
 
   const { pricing } = hotel;
-  const tax = Math.round(pricing.final * 0.14);
-  const total = pricing.final + tax;
+  const roomTypes = makeRoomTypes(hotel);
+  const roomType = roomTypes.find((r) => r.id === selectedRoom) || roomTypes[0];
+  const adjustedFinal = Math.round(pricing.final * roomType.multiplier);
+  const adjustedRack = Math.round(pricing.rack * roomType.multiplier);
+  const tax = Math.round(adjustedFinal * 0.14);
+  const total = adjustedFinal + tax;
   const isFav = favorites.has(hotel.id);
   const perks = getPerkBadges(hotel.amenities, 6);
 
+  // Build gallery: use hotel.gallery if present, else fall back to main image only
+  const galleryImages = hotel.gallery?.length ? hotel.gallery : [hotel.image];
+
+  function handleBook() {
+    nav(`/checkout/${hotel.id}?room=${selectedRoom}`);
+  }
+
   return (
     <>
-      <div className="detail-hero" style={{ backgroundImage: `url(${hotel.image})` }}>
+      {/* Photo gallery replaces the single hero image */}
+      <div style={{ position: 'relative' }}>
+        <PhotoGallery images={galleryImages} name={hotel.name} />
         <button
           className="detail-fav-btn"
           onClick={() => toggleFavorite(hotel.id)}
@@ -37,6 +115,22 @@ export default function HotelDetailPage() {
           {isFav ? '❤️ Saved' : '🤍 Save'}
         </button>
       </div>
+
+      {bookingDate === 'tomorrow' && (
+        <div
+          style={{
+            background: 'rgba(255,184,77,0.12)',
+            border: '1px solid rgba(255,184,77,0.3)',
+            borderRadius: 10,
+            padding: '10px 16px',
+            fontSize: 13,
+            color: 'var(--warn)',
+            margin: '12px 0 0',
+          }}
+        >
+          ☀️ Showing <strong>tomorrow's</strong> rate — vacancy discounts applied, late-arrival savings excluded.
+        </div>
+      )}
 
       <div className="detail-grid">
         <div>
@@ -55,7 +149,23 @@ export default function HotelDetailPage() {
             </div>
           )}
 
+          {/* Price sparkline */}
+          <div style={{ marginTop: 16, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 13, color: 'var(--muted)' }}>Tonight's price curve</span>
+            <PriceSparkline hotel={hotel} width={160} height={40} showLabel />
+          </div>
+
+          {/* Room type picker */}
           <div className="detail-card" style={{ marginTop: 18 }}>
+            <RoomTypePicker
+              roomTypes={roomTypes}
+              selected={selectedRoom}
+              pricing={pricing}
+              onChange={setSelectedRoom}
+            />
+          </div>
+
+          <div className="detail-card" style={{ marginTop: 16 }}>
             <h3 style={{ marginTop: 0 }}>Amenities</h3>
             <div className="amenity-list">
               {hotel.amenities.map((a) => (
@@ -87,40 +197,48 @@ export default function HotelDetailPage() {
               </div>
             ))}
           </div>
+
+          {/* Market Intelligence */}
+          <div style={{ marginTop: 16 }}>
+            <MarketIntelPanel hotel={hotel} />
+          </div>
         </div>
 
         <aside>
           <div className="detail-card">
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
               {pricing.totalPct > 0.01 && (
-                <span className="price-old">${pricing.rack}</span>
+                <span className="price-old">${adjustedRack}</span>
               )}
-              <span className="price-new">${pricing.final}</span>
+              <span className="price-new">${adjustedFinal}</span>
               <span className="per-night">/ night</span>
             </div>
             {pricing.totalPct > 0.01 && (
               <div style={{ color: 'var(--good)', fontWeight: 700, fontSize: 14, marginTop: 4 }}>
-                You save ${pricing.rack - pricing.final} tonight
+                You save ${adjustedRack - adjustedFinal} — {roomType.name}
               </div>
             )}
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
+              {roomType.beds} · {roomType.sqft.toLocaleString()} sq ft
+            </div>
             <div className="checkout-summary" style={{ marginTop: 16 }}>
-              <span>1 night</span>
-              <span>${pricing.final}</span>
+              <span>1 night · {roomType.name}</span>
+              <span>${adjustedFinal}</span>
             </div>
             <div className="checkout-summary">
               <span>Taxes &amp; fees (14%)</span>
               <span>${tax}</span>
             </div>
             <div className="checkout-summary">
-              <span>Total due tonight</span>
+              <span>Total due {bookingDate}</span>
               <span>${total}</span>
             </div>
             <button
               className="btn-primary"
               style={{ marginTop: 16, width: '100%', padding: '14px' }}
-              onClick={() => nav(`/checkout/${hotel.id}`)}
+              onClick={handleBook}
             >
-              Book tonight
+              Book {bookingDate} — ${total}
             </button>
             <div className="cancel-policy">
               ✅ Free cancellation until 6:00 PM local time
@@ -132,23 +250,23 @@ export default function HotelDetailPage() {
         </aside>
       </div>
 
-      {/* Mobile sticky booking bar — shown only on small screens via CSS */}
+      {/* Mobile sticky bar */}
       <div className="sticky-book-bar">
         <div>
           {pricing.totalPct > 0.01 && (
-            <span className="price-old" style={{ fontSize: 13 }}>${pricing.rack}</span>
+            <span className="price-old" style={{ fontSize: 13 }}>${adjustedRack}</span>
           )}
           <span className="price-new" style={{ fontSize: 20, marginLeft: pricing.totalPct > 0.01 ? 6 : 0 }}>
-            ${pricing.final}
+            ${adjustedFinal}
           </span>
-          <span className="per-night"> /night</span>
+          <span className="per-night"> /night · {roomType.name}</span>
         </div>
         <button
           className="btn-primary"
           style={{ padding: '12px 24px', flexShrink: 0 }}
-          onClick={() => nav(`/checkout/${hotel.id}`)}
+          onClick={handleBook}
         >
-          Book tonight
+          Book {bookingDate}
         </button>
       </div>
     </>

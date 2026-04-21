@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../store.jsx';
 import { getPerkBadges } from '../lib/pricing.js';
+import PriceSparkline from './PriceSparkline.jsx';
 
 function priceTrendLabel(simulatedHour, primeTimeHour, cutoffHour) {
   if (simulatedHour >= cutoffHour) return { text: '★ Best rate tonight', cls: 'trend-best' };
@@ -70,6 +71,11 @@ export default function HotelCard({ hotel, distanceMi }) {
           <span className="price-new">${pricing.final}</span>
           <span className="per-night">/ night</span>
           <span className={`price-trend ${trend.cls}`}>{trend.text}</span>
+        </div>
+
+        <div className="card-sparkline-row">
+          <span className="card-sparkline-label">Price today</span>
+          <PriceSparkline hotel={hotel} width={90} height={26} />
         </div>
 
         <div className="scarcity-row">

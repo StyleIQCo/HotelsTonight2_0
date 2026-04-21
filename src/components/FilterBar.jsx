@@ -14,8 +14,38 @@ const STAR_OPTIONS = [
   { value: 5, label: '5★ Only' },
 ];
 
-export default function FilterBar({ sortBy, setSortBy, minStars, setMinStars, favsOnly, setFavsOnly, resultCount }) {
+export const AMENITY_FILTERS = [
+  { id: 'pool',      label: '🏊 Pool',         keywords: ['pool'] },
+  { id: 'spa',       label: '💆 Spa',          keywords: ['spa', 'hammam', 'wellness'] },
+  { id: 'dining',    label: '🍽️ Fine Dining',  keywords: ['michelin', 'restaurant', 'tasting', 'farm-to-table', 'chefs counter'] },
+  { id: 'wifi',      label: '📶 Free Wi-Fi',   keywords: ['wi-fi', 'wifi'] },
+  { id: 'pet',       label: '🐾 Pet Friendly', keywords: ['pet'] },
+  { id: 'rooftop',   label: '🌆 Rooftop',      keywords: ['rooftop', 'observatory'] },
+  { id: 'ev',        label: '⚡ EV Charging',  keywords: ['ev charging'] },
+  { id: 'housecar',  label: '🚗 House Car',    keywords: ['house car', 'rolls-royce', 'tesla house car'] },
+];
+
+export function hotelMatchesAmenity(hotel, amenityId) {
+  const filter = AMENITY_FILTERS.find((a) => a.id === amenityId);
+  if (!filter) return true;
+  const lower = hotel.amenities.map((a) => a.toLowerCase());
+  return filter.keywords.some((kw) => lower.some((a) => a.includes(kw)));
+}
+
+export default function FilterBar({
+  sortBy, setSortBy,
+  minStars, setMinStars,
+  favsOnly, setFavsOnly,
+  amenities, setAmenities,
+  resultCount,
+}) {
   const { userLocation, favorites } = useApp();
+
+  function toggleAmenity(id) {
+    setAmenities((prev) =>
+      prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]
+    );
+  }
 
   return (
     <div className="filter-bar">
@@ -52,12 +82,37 @@ export default function FilterBar({ sortBy, setSortBy, minStars, setMinStars, fa
         </div>
       </div>
 
+      <div className="filter-group">
+        <span className="filter-label">Amenities</span>
+        <div className="filter-chips">
+          {AMENITY_FILTERS.map((opt) => (
+            <button
+              key={opt.id}
+              className={`filter-chip${amenities.includes(opt.id) ? ' active' : ''}`}
+              onClick={() => toggleAmenity(opt.id)}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {favorites.size > 0 && (
         <button
           className={`filter-chip filter-chip-fav${favsOnly ? ' active' : ''}`}
           onClick={() => setFavsOnly((v) => !v)}
         >
           ❤️ Saved ({favorites.size})
+        </button>
+      )}
+
+      {(amenities.length > 0 || minStars > 0 || favsOnly) && (
+        <button
+          className="filter-chip"
+          style={{ color: 'var(--accent)', borderColor: 'var(--accent-soft)' }}
+          onClick={() => { setMinStars(0); setFavsOnly(false); setAmenities([]); }}
+        >
+          ✕ Clear all
         </button>
       )}
 

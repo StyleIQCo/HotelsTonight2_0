@@ -18,6 +18,7 @@ export function AppProvider({ children }) {
   const [hotels, setHotels] = useState(initialHotels);
   const [simulatedHour, setSimulatedHour] = useState(() => new Date().getHours());
   const [pricingConfig, setPricingConfig] = useState(PRICING_DEFAULTS);
+  const [bookingDate, setBookingDate] = useState('tonight'); // 'tonight' | 'tomorrow'
   const [userLocation, setUserLocation] = useState(null);
   const [bookings, setBookings] = useState([]); // [{ id, hotelId, guestName, priceUSD, createdAt }]
   const [toasts, setToasts] = useState([]);
@@ -54,8 +55,8 @@ export function AppProvider({ children }) {
 
   // Compute priced hotels reactively.
   const pricedHotels = useMemo(
-    () => hotels.map((h) => ({ ...h, pricing: priceHotel(h, now, pricingConfig) })),
-    [hotels, now, pricingConfig]
+    () => hotels.map((h) => ({ ...h, pricing: priceHotel(h, now, pricingConfig, bookingDate === 'tomorrow') })),
+    [hotels, now, pricingConfig, bookingDate]
   );
 
   // Marketing / notification engine: when a hotel crosses a 25% total discount
@@ -131,6 +132,8 @@ export function AppProvider({ children }) {
 
   const value = {
     hotels: pricedHotels,
+    bookingDate,
+    setBookingDate,
     rawHotels: hotels,
     updateHotel,
     now,

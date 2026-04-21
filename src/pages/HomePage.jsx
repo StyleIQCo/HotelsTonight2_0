@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import HotelCard from '../components/HotelCard.jsx';
-import FilterBar from '../components/FilterBar.jsx';
+import FilterBar, { hotelMatchesAmenity } from '../components/FilterBar.jsx';
 import TimeSimulator from '../components/TimeSimulator.jsx';
 import HotelMap from '../components/HotelMap.jsx';
 import { useApp } from '../store.jsx';
@@ -48,8 +48,33 @@ function SecretCard({ hotel }) {
   );
 }
 
+function DateToggle({ bookingDate, setBookingDate }) {
+  return (
+    <div className="date-toggle">
+      <button
+        className={`date-toggle-btn${bookingDate === 'tonight' ? ' active' : ''}`}
+        onClick={() => setBookingDate('tonight')}
+      >
+        🌙 Tonight
+      </button>
+      <button
+        className={`date-toggle-btn${bookingDate === 'tomorrow' ? ' active' : ''}`}
+        onClick={() => setBookingDate('tomorrow')}
+      >
+        ☀️ Tomorrow
+      </button>
+    </div>
+  );
+}
+
 export default function HomePage() {
-  const { hotels, userLocation, setUserLocation, simulatedHour, realMinute, pricingConfig } = useApp();
+  const {
+    hotels, userLocation, setUserLocation,
+    simulatedHour, realMinute, pricingConfig,
+    bookingDate, setBookingDate,
+    favorites,
+  } = useApp();
+
   const [locating, setLocating] = useState(false);
   const [locationAsked, setLocationAsked] = useState(false);
 
@@ -57,7 +82,7 @@ export default function HomePage() {
   const [sortBy, setSortBy] = useState('deal');
   const [minStars, setMinStars] = useState(0);
   const [favsOnly, setFavsOnly] = useState(false);
-  const { favorites } = useApp();
+  const [amenities, setAmenities] = useState([]);
 
   useEffect(() => {
     if (!locationAsked && !userLocation) {
@@ -81,16 +106,15 @@ export default function HomePage() {
     }));
   }, [hotels, userLocation]);
 
-  // Separate top-secret hotels from the main grid
   const secretHotels = useMemo(() => annotated.filter((h) => h.topSecret), [annotated]);
-
   const regularHotels = useMemo(() => annotated.filter((h) => !h.topSecret), [annotated]);
 
-  // Apply filters + sort to regular hotels
   const filtered = useMemo(() => {
     let list = [...regularHotels];
     if (minStars > 0) list = list.filter((h) => h.stars >= minStars);
     if (favsOnly) list = list.filter((h) => favorites.has(h.id));
+    if (amenities.length > 0)
+      list = list.filter((h) => amenities.every((a) => hotelMatchesAmenity(h, a)));
     switch (sortBy) {
       case 'price':
         list.sort((a, b) => a.pricing.final - b.pricing.final);
@@ -104,11 +128,11 @@ export default function HomePage() {
           return b.pricing.totalPct - a.pricing.totalPct;
         });
         break;
-      default: // 'deal'
+      default:
         list.sort((a, b) => b.pricing.totalPct - a.pricing.totalPct);
     }
     return list;
-  }, [regularHotels, sortBy, minStars, favsOnly, favorites]);
+  }, [regularHotels, sortBy, minStars, favsOnly, amenities, favorites]);
 
   const bestDeal = [...annotated].sort((a, b) => b.pricing.totalPct - a.pricing.totalPct)[0];
   const isAfterPrime = simulatedHour >= pricingConfig.primeTimeHour;
@@ -124,20 +148,32 @@ export default function HomePage() {
           We partner with hotels that still have rooms and pass the savings straight to you.
           The later you book, the more you save.
         </p>
-        <div style={{ marginTop: 18, display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+
+        <DateToggle bookingDate={bookingDate} setBookingDate={setBookingDate} />
+
+        <div style={{ marginTop: 14, display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
           <button className="btn-primary" onClick={requestLocation} disabled={locating}>
             {locating ? 'Finding you…' : userLocation ? '📍 Using your location' : '📍 Use my location'}
           </button>
-          <a className="btn-ghost" href="#deals">See tonight's deals</a>
+          <a className="btn-ghost" href="#deals">See {bookingDate === 'tomorrow' ? "tomorrow's" : "tonight's"} deals</a>
         </div>
-        <div style={{ marginTop: 14 }}>
-          <CountdownPill simulatedHour={simulatedHour} realMinute={realMinute} pricingConfig={pricingConfig} />
-        </div>
+        {bookingDate === 'tonight' && (
+          <div style={{ marginTop: 14 }}>
+            <CountdownPill simulatedHour={simulatedHour} realMinute={realMinute} pricingConfig={pricingConfig} />
+          </div>
+        )}
+        {bookingDate === 'tomorrow' && (
+          <div style={{ marginTop: 14 }}>
+            <span className="countdown-badge countdown-pending">
+              ☀️ Tomorrow's rates — vacancy discounts apply, late-arrival savings don't
+            </span>
+          </div>
+        )}
       </section>
 
       <TimeSimulator />
 
-      {bestDeal && bestDeal.pricing.totalPct > 0.15 && (
+      {bestDeal && bestDeal.pricing.totalPct > 0.15 && bookingDate === 'tonight' && (
         <div className="deal-banner">
           <div className="deal-banner-text">
             <strong>Tonight's biggest drop: {Math.round(bestDeal.pricing.totalPct * 100)}% off</strong>
@@ -149,8 +185,8 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Top Secret Deals */}
-      {secretHotels.length > 0 && (
+      {/* Top Secret Deals — only shown for tonight */}
+      {secretHotels.length > 0 && bookingDate === 'tonight' && (
         <>
           <div className="section-title" style={{ marginTop: 32 }}>
             <h2>🔒 Top Secret Deals</h2>
@@ -171,7 +207,11 @@ export default function HomePage() {
       <HotelMap hotels={filtered} userLocation={userLocation} height={380} />
 
       <div className="section-title" id="deals" style={{ marginTop: 28 }}>
-        <h2>{userLocation ? 'Near you tonight' : 'Tonight across the country'}</h2>
+        <h2>
+          {bookingDate === 'tomorrow'
+            ? (userLocation ? 'Near you tomorrow' : 'Tomorrow across the country')
+            : (userLocation ? 'Near you tonight' : 'Tonight across the country')}
+        </h2>
         <small>{annotated.length} partner hotels with rooms right now</small>
       </div>
 
@@ -179,6 +219,7 @@ export default function HomePage() {
         sortBy={sortBy} setSortBy={setSortBy}
         minStars={minStars} setMinStars={setMinStars}
         favsOnly={favsOnly} setFavsOnly={setFavsOnly}
+        amenities={amenities} setAmenities={setAmenities}
         resultCount={filtered.length}
       />
 
@@ -189,7 +230,7 @@ export default function HomePage() {
         {filtered.length === 0 && (
           <div className="empty-state" style={{ gridColumn: '1/-1' }}>
             <p>No hotels match your filters.</p>
-            <button className="btn-ghost" onClick={() => { setMinStars(0); setFavsOnly(false); }}>
+            <button className="btn-ghost" onClick={() => { setMinStars(0); setFavsOnly(false); setAmenities([]); }}>
               Clear filters
             </button>
           </div>

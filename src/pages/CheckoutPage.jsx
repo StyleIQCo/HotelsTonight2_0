@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import {
   Elements,
@@ -8,6 +8,7 @@ import {
   useStripe
 } from '@stripe/react-stripe-js';
 import { useApp } from '../store.jsx';
+import { makeRoomTypes } from '../lib/pricing.js';
 
 // Load Stripe lazily with the publishable test key from env.
 // Falls back to a clearly-broken placeholder so the UI still renders during
@@ -27,7 +28,7 @@ const cardStyle = {
   }
 };
 
-function CheckoutInner({ hotel, pricing, total, tax }) {
+function CheckoutInner({ hotel, pricing, total, tax, roomType }) {
   const stripe = useStripe();
   const elements = useElements();
   const { recordBooking, pushToast } = useApp();
@@ -71,6 +72,7 @@ function CheckoutInner({ hotel, pricing, total, tax }) {
       id: `bk_${Math.random().toString(36).slice(2, 9)}`,
       hotelId: hotel.id,
       hotelName: hotel.name,
+      roomType: roomType?.name || 'Standard Room',
       guestName: name,
       guestEmail: email,
       priceUSD: total,
@@ -144,15 +146,20 @@ function CheckoutInner({ hotel, pricing, total, tax }) {
 
 export default function CheckoutPage() {
   const { id } = useParams();
-  const { hotels } = useApp();
+  const [searchParams] = useSearchParams();
+  const { hotels, bookingDate } = useApp();
   const hotel = hotels.find((h) => h.id === id);
 
   const totals = useMemo(() => {
     if (!hotel) return null;
     const p = hotel.pricing;
-    const tax = Math.round(p.final * 0.14);
-    return { pricing: p, tax, total: p.final + tax };
-  }, [hotel]);
+    const roomTypes = makeRoomTypes(hotel);
+    const roomId = searchParams.get('room') || 'standard';
+    const roomType = roomTypes.find((r) => r.id === roomId) || roomTypes[0];
+    const adjustedFinal = Math.round(p.final * roomType.multiplier);
+    const tax = Math.round(adjustedFinal * 0.14);
+    return { pricing: p, tax, total: adjustedFinal + tax, roomType, adjustedFinal };
+  }, [hotel, searchParams]);
 
   if (!hotel) {
     return (
@@ -174,6 +181,7 @@ export default function CheckoutPage() {
               pricing={totals.pricing}
               tax={totals.tax}
               total={totals.total}
+              roomType={totals.roomType}
             />
           </Elements>
         ) : (
@@ -202,8 +210,12 @@ export default function CheckoutPage() {
           </div>
           <div style={{ marginTop: 16 }}>
             <div className="checkout-summary">
+              <span>Room type</span>
+              <span style={{ color: 'var(--muted)' }}>{totals.roomType?.name}</span>
+            </div>
+            <div className="checkout-summary">
               <span>Nightly rate</span>
-              <span>${totals.pricing.final}</span>
+              <span>${totals.adjustedFinal}</span>
             </div>
             <div className="checkout-summary">
               <span>Taxes & fees</span>

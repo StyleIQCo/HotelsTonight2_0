@@ -39,12 +39,16 @@ export function vacancyDiscount(vacancyRate, cfg = PRICING_DEFAULTS) {
 }
 
 /**
- * Returns the per-night pricing for a hotel tonight.
+ * Returns the per-night pricing for a hotel.
+ * forTomorrow=true removes the late-check-in urgency discount (no same-night rush),
+ * and dampens vacancy discount by 30% since tomorrow still has time to fill.
+ *
  * { rack, final, totalPct, lateShare, vacancyShare, reasons[] }
  */
-export function priceHotel(hotel, now = new Date(), cfg = PRICING_DEFAULTS) {
-  const late = lateCheckInDiscount(now.getHours(), cfg);
-  const vac = vacancyDiscount(hotel.vacancyRate, cfg);
+export function priceHotel(hotel, now = new Date(), cfg = PRICING_DEFAULTS, forTomorrow = false) {
+  const late = forTomorrow ? 0 : lateCheckInDiscount(now.getHours(), cfg);
+  const rawVac = vacancyDiscount(hotel.vacancyRate, cfg);
+  const vac = forTomorrow ? rawVac * 0.70 : rawVac;
   let total = late + vac;
   if (total > cfg.floorPct) total = cfg.floorPct;
 
@@ -98,6 +102,43 @@ export function getPerkBadges(amenities, max = 3) {
     }
   }
   return badges;
+}
+
+/**
+ * Generate tiered room types for a hotel.
+ * All prices are expressed as multipliers on top of the base nightly rate.
+ */
+export function makeRoomTypes(hotel) {
+  const is5 = hotel.stars >= 5;
+  return [
+    {
+      id: 'standard',
+      name: 'Standard Room',
+      multiplier: 1.0,
+      beds: '1 King Bed',
+      maxGuests: 2,
+      sqft: is5 ? 480 : 380,
+      description: 'Premium linens, in-room espresso, and full access to all hotel facilities.',
+    },
+    {
+      id: 'deluxe',
+      name: is5 ? 'Deluxe Room' : 'Superior Room',
+      multiplier: 1.30,
+      beds: '1 King or 2 Queens',
+      maxGuests: 3,
+      sqft: is5 ? 640 : 520,
+      description: 'Upgraded city or garden views, enhanced minibar, and priority check-in.',
+    },
+    {
+      id: 'suite',
+      name: is5 ? 'Junior Suite' : 'Suite',
+      multiplier: 1.75,
+      beds: '1 King + Separate Living Area',
+      maxGuests: 4,
+      sqft: is5 ? 1100 : 820,
+      description: 'Separate living room, soaking tub, premium bar, and dedicated concierge.',
+    },
+  ];
 }
 
 /** Haversine-ish distance in miles between two lat/lng points. */
