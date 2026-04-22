@@ -28,15 +28,25 @@ const cardStyle = {
   }
 };
 
-function CheckoutInner({ hotel, pricing, total, tax, roomType }) {
+const CHECK_IN_OPTIONS = [
+  { id: 'standard',  label: 'Standard check-in',   time: '3:00 PM',  surcharge: 0 },
+  { id: 'early',     label: 'Early check-in',       time: '11:00 AM', surcharge: 25 },
+  { id: 'late_out',  label: 'Late check-out',       time: '12:00 PM next day', surcharge: 15 },
+];
+
+function CheckoutInner({ hotel, pricing, baseTotal, tax, roomType, creditsToApply }) {
   const stripe = useStripe();
   const elements = useElements();
-  const { recordBooking, pushToast } = useApp();
+  const { recordBooking, pushToast, spendCredits } = useApp();
   const nav = useNavigate();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [checkInOption, setCheckInOption] = useState('standard');
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState(null);
+
+  const surcharge = CHECK_IN_OPTIONS.find((o) => o.id === checkInOption)?.surcharge || 0;
+  const total = baseTotal + surcharge - creditsToApply;
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -53,9 +63,6 @@ function CheckoutInner({ hotel, pricing, total, tax, roomType }) {
 
     setSubmitting(true);
 
-    // In test mode we validate the card by creating a PaymentMethod on the client.
-    // In production this would hit your backend to create a PaymentIntent and
-    // confirm it server-side.
     const { error, paymentMethod } = await stripe.createPaymentMethod({
       type: 'card',
       card: elements.getElement(CardElement),
@@ -68,19 +75,24 @@ function CheckoutInner({ hotel, pricing, total, tax, roomType }) {
       return;
     }
 
+    if (creditsToApply > 0) spendCredits(creditsToApply);
+
+    const checkInLabel = CHECK_IN_OPTIONS.find((o) => o.id === checkInOption)?.label || 'Standard check-in';
     const booking = {
       id: `bk_${Math.random().toString(36).slice(2, 9)}`,
       hotelId: hotel.id,
       hotelName: hotel.name,
       roomType: roomType?.name || 'Standard Room',
+      checkInTime: checkInLabel,
       guestName: name,
       guestEmail: email,
       priceUSD: total,
+      creditsUsed: creditsToApply,
       paymentMethodId: paymentMethod?.id || 'pm_demo'
     };
     recordBooking(booking);
     pushToast({
-      title: 'Booking confirmed',
+      title: 'Booking confirmed! ⭐ +' + Math.round(total * 0.05) + ' credits earned',
       body: `You're in at ${hotel.name} tonight. Confirmation sent to ${email}.`
     });
     nav(`/confirmation/${booking.id}`, { state: { booking, hotel } });
@@ -111,6 +123,35 @@ function CheckoutInner({ hotel, pricing, total, tax, roomType }) {
           required
         />
       </div>
+
+      <div className="field">
+        <label style={{ display: 'block', marginBottom: 10, fontWeight: 600 }}>Check-in preference</label>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {CHECK_IN_OPTIONS.map((opt) => (
+            <label
+              key={opt.id}
+              className={`checkin-option${checkInOption === opt.id ? ' selected' : ''}`}
+            >
+              <input
+                type="radio"
+                name="checkin"
+                value={opt.id}
+                checked={checkInOption === opt.id}
+                onChange={() => setCheckInOption(opt.id)}
+                style={{ display: 'none' }}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, fontSize: 14 }}>{opt.label}</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)' }}>{opt.time}</div>
+              </div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: opt.surcharge > 0 ? 'var(--warn)' : 'var(--good)' }}>
+                {opt.surcharge > 0 ? `+$${opt.surcharge}` : 'Free'}
+              </div>
+            </label>
+          ))}
+        </div>
+      </div>
+
       <div className="field">
         <label>Card (Stripe test mode)</label>
         <div className="input" style={{ padding: 14 }}>
@@ -138,7 +179,7 @@ function CheckoutInner({ hotel, pricing, total, tax, roomType }) {
       )}
 
       <button type="submit" className="btn-primary" style={{ width: '100%', padding: 14 }} disabled={submitting}>
-        {submitting ? 'Charging card…' : `Pay $${total} · Book tonight`}
+        {submitting ? 'Charging card…' : `Pay $${total} · Book now`}
       </button>
     </form>
   );
@@ -147,8 +188,9 @@ function CheckoutInner({ hotel, pricing, total, tax, roomType }) {
 export default function CheckoutPage() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
-  const { hotels, bookingDate } = useApp();
+  const { hotels, bookingDate, credits } = useApp();
   const hotel = hotels.find((h) => h.id === id);
+  const [useCredits, setUseCredits] = useState(false);
 
   const totals = useMemo(() => {
     if (!hotel) return null;
@@ -158,8 +200,10 @@ export default function CheckoutPage() {
     const roomType = roomTypes.find((r) => r.id === roomId) || roomTypes[0];
     const adjustedFinal = Math.round(p.final * roomType.multiplier);
     const tax = Math.round(adjustedFinal * 0.14);
-    return { pricing: p, tax, total: adjustedFinal + tax, roomType, adjustedFinal };
-  }, [hotel, searchParams]);
+    const baseTotal = adjustedFinal + tax;
+    const maxCredits = Math.min(credits, Math.round(baseTotal * 0.20));
+    return { pricing: p, tax, baseTotal, roomType, adjustedFinal, maxCredits };
+  }, [hotel, searchParams, credits]);
 
   if (!hotel) {
     return (
@@ -174,14 +218,35 @@ export default function CheckoutPage() {
     <div className="detail-grid" style={{ marginTop: 20 }}>
       <div className="detail-card">
         <h2 style={{ marginTop: 0 }}>Confirm and pay</h2>
+        {/* Credits toggle */}
+        {credits > 0 && (
+          <div className="credits-apply-row">
+            <label className="credits-apply-label">
+              <input
+                type="checkbox"
+                checked={useCredits}
+                onChange={(e) => setUseCredits(e.target.checked)}
+                style={{ marginRight: 8 }}
+              />
+              <span>
+                ⭐ Apply NightDrop Credits
+                <span style={{ color: 'var(--muted)', fontWeight: 400 }}>
+                  {' '}— up to ${totals.maxCredits} off (you have {credits} credits)
+                </span>
+              </span>
+            </label>
+          </div>
+        )}
+
         {stripePromise ? (
           <Elements stripe={stripePromise}>
             <CheckoutInner
               hotel={hotel}
               pricing={totals.pricing}
               tax={totals.tax}
-              total={totals.total}
+              baseTotal={totals.baseTotal}
               roomType={totals.roomType}
+              creditsToApply={useCredits ? totals.maxCredits : 0}
             />
           </Elements>
         ) : (
@@ -221,9 +286,18 @@ export default function CheckoutPage() {
               <span>Taxes & fees</span>
               <span>${totals.tax}</span>
             </div>
-            <div className="checkout-summary">
+            {useCredits && totals.maxCredits > 0 && (
+              <div className="checkout-summary" style={{ color: 'var(--good)' }}>
+                <span>⭐ Credits applied</span>
+                <span>−${totals.maxCredits}</span>
+              </div>
+            )}
+            <div className="checkout-summary" style={{ fontWeight: 700, borderTop: '1px solid var(--border)', paddingTop: 10, marginTop: 6 }}>
               <span>Total</span>
-              <span>${totals.total}</span>
+              <span>${totals.baseTotal - (useCredits ? totals.maxCredits : 0)}</span>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--warn)', marginTop: 8 }}>
+              ⭐ You'll earn ~{Math.round(totals.baseTotal * 0.05)} credits from this booking
             </div>
           </div>
         </div>

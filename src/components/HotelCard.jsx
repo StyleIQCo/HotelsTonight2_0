@@ -17,7 +17,8 @@ function getRoomsLeft(hotel) {
 
 export default function HotelCard({ hotel, distanceMi }) {
   const { pricing } = hotel;
-  const { simulatedHour, pricingConfig, favorites, toggleFavorite, viewerCount } = useApp();
+  const { simulatedHour, pricingConfig, favorites, toggleFavorite, viewerCount, ratingSummaries } = useApp();
+  const rating = ratingSummaries[hotel.id];
   const isFav = favorites.has(hotel.id);
   const hasDiscount = pricing.totalPct > 0.01;
   const primaryReason = pricing.reasons[0];
@@ -57,6 +58,13 @@ export default function HotelCard({ hotel, distanceMi }) {
           {' · '}{hotel.neighborhood}
           {distanceMi != null && ` · ${distanceMi.toFixed(1)} mi`}
         </div>
+        {rating && (
+          <div className="hotel-rating">
+            <span style={{ color: '#ffb84d' }}>★</span>
+            <span style={{ fontWeight: 700 }}>{rating.avg}</span>
+            <span style={{ color: 'var(--muted)', fontSize: 11 }}>({rating.count})</span>
+          </div>
+        )}
 
         {perks.length > 0 && (
           <div className="perk-row">

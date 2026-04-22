@@ -11,6 +11,19 @@ const SEASONAL = {
   'San Francisco':  [0.80, 0.80, 0.90, 1.00, 1.10, 1.15, 1.00, 0.95, 1.10, 1.05, 0.90, 0.80],
   'Seattle':        [0.70, 0.70, 0.80, 0.90, 1.05, 1.15, 1.20, 1.20, 1.10, 0.90, 0.75, 0.70],
   'Bellevue':       [0.70, 0.70, 0.80, 0.90, 1.05, 1.15, 1.20, 1.20, 1.10, 0.90, 0.75, 0.70],
+  'Chicago':        [0.60, 0.60, 0.75, 0.90, 1.05, 1.15, 1.20, 1.15, 1.10, 0.95, 0.80, 0.65],
+  'West Hollywood': [0.85, 0.85, 0.95, 1.05, 1.10, 1.15, 1.20, 1.20, 1.05, 0.95, 0.90, 0.85],
+  'Koreatown':      [0.85, 0.85, 0.95, 1.05, 1.10, 1.15, 1.20, 1.20, 1.05, 0.95, 0.90, 0.85],
+  'Belltown':       [0.70, 0.70, 0.80, 0.90, 1.05, 1.15, 1.20, 1.20, 1.10, 0.90, 0.75, 0.70],
+  'Mid-Market':     [0.80, 0.80, 0.90, 1.00, 1.10, 1.15, 1.00, 0.95, 1.10, 1.05, 0.90, 0.80],
+  'Union Square':   [0.80, 0.80, 0.90, 1.00, 1.10, 1.15, 1.00, 0.95, 1.10, 1.05, 0.90, 0.80],
+  'SoHo':           [0.70, 0.70, 0.85, 1.00, 1.10, 1.20, 1.20, 1.15, 1.10, 1.05, 0.95, 0.80],
+  'Meatpacking District': [0.70, 0.70, 0.85, 1.00, 1.10, 1.20, 1.20, 1.15, 1.10, 1.05, 0.95, 0.80],
+  'Financial District': [0.70, 0.70, 0.85, 1.00, 1.10, 1.20, 1.10, 1.10, 1.10, 1.05, 0.95, 0.80],
+  'The Strip':      [0.85, 0.85, 1.05, 1.10, 0.90, 0.70, 0.60, 0.65, 1.00, 1.10, 1.15, 1.20],
+  'Downtown':       [0.70, 0.70, 0.80, 0.90, 1.05, 1.15, 1.20, 1.20, 1.10, 0.90, 0.75, 0.70],
+  'Magnificent Mile': [0.60, 0.60, 0.75, 0.90, 1.05, 1.15, 1.20, 1.15, 1.10, 0.95, 0.80, 0.65],
+  'West Loop':      [0.60, 0.60, 0.75, 0.90, 1.05, 1.15, 1.20, 1.15, 1.10, 0.95, 0.80, 0.65],
 };
 
 // Travel-weather quality by city and month (1.0 = ideal for visitors).
@@ -86,6 +99,22 @@ export const EVENTS_BY_CITY = {
     { name: 'Microsoft Build',              start: '2026-05-19', end: '2026-05-22', type: 'conference', impact: 'very_high' },
     { name: 'Bellevue Arts Museum Fair',    start: '2026-07-24', end: '2026-07-26', type: 'event',      impact: 'medium' },
   ],
+  'Chicago': [
+    { name: 'Chicago Auto Show',            start: '2026-02-14', end: '2026-02-22', type: 'conference', impact: 'high' },
+    { name: 'St. Patrick\'s Day parade',    start: '2026-03-14', end: '2026-03-14', type: 'event',      impact: 'high' },
+    { name: 'Lollapalooza Chicago',         start: '2026-08-01', end: '2026-08-04', type: 'event',      impact: 'very_high' },
+    { name: 'Chicago Marathon',             start: '2026-10-11', end: '2026-10-11', type: 'event',      impact: 'high' },
+    { name: 'Chicago Hospitality Show',     start: '2026-05-16', end: '2026-05-19', type: 'conference', impact: 'high' },
+  ],
+  'Magnificent Mile': [
+    { name: 'Chicago Auto Show',            start: '2026-02-14', end: '2026-02-22', type: 'conference', impact: 'high' },
+    { name: 'Chicago Marathon',             start: '2026-10-11', end: '2026-10-11', type: 'event',      impact: 'high' },
+    { name: 'Lollapalooza Chicago',         start: '2026-08-01', end: '2026-08-04', type: 'event',      impact: 'very_high' },
+  ],
+  'West Loop': [
+    { name: 'Chicago Hospitality Show',     start: '2026-05-16', end: '2026-05-19', type: 'conference', impact: 'high' },
+    { name: 'Lollapalooza Chicago',         start: '2026-08-01', end: '2026-08-04', type: 'event',      impact: 'very_high' },
+  ],
 };
 
 const IMPACT_VAL = { very_high: 0.35, high: 0.20, medium: 0.10, low: 0.05 };
@@ -105,8 +134,12 @@ function isWithin(date, startStr, endStr, daysBefore = 2) {
 }
 
 function extractCity(hotel) {
-  const parts = hotel.neighborhood.split(',');
-  return parts[parts.length - 1].trim();
+  const parts = hotel.neighborhood.split(',').map((s) => s.trim());
+  // Try neighborhood first (more specific), then the city name
+  for (const part of parts) {
+    if (SEASONAL[part] || EVENTS_BY_CITY[part]) return part;
+  }
+  return parts[parts.length - 1]; // fall back to city
 }
 
 export function getActiveEvents(city, date = new Date()) {

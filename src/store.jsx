@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { initialHotels } from './data/hotels.js';
 import { initialProspects } from './data/prospects.js';
+import { initialReviews, buildRatingSummaries } from './data/reviews.js';
 import { priceHotel, PRICING_DEFAULTS } from './lib/pricing.js';
 
 function seedViewerCount(hotelId) {
@@ -59,6 +60,27 @@ export function AppProvider({ children }) {
     [hotels, now, pricingConfig, bookingDate]
   );
 
+  // Price alert engine: fire toast when a hotel price drops to / below target
+  const alertedRef = useRef(new Set());
+  useEffect(() => {
+    for (const alert of priceAlerts) {
+      const hotel = pricedHotels.find((h) => h.id === alert.hotelId);
+      if (!hotel) continue;
+      const key = `${alert.hotelId}:${alert.targetPrice}`;
+      if (hotel.pricing.final <= alert.targetPrice && !alertedRef.current.has(key)) {
+        alertedRef.current.add(key);
+        pushToast({
+          title: `🎯 Price alert: ${hotel.name}`,
+          body: `Now $${hotel.pricing.final}/night — your target was $${alert.targetPrice}. Book now!`,
+        });
+      }
+      if (hotel.pricing.final > alert.targetPrice) {
+        alertedRef.current.delete(key);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pricedHotels, priceAlerts]);
+
   // Marketing / notification engine: when a hotel crosses a 25% total discount
   // threshold we haven't alerted on yet, fire a toast.
   useEffect(() => {
@@ -93,7 +115,12 @@ export function AppProvider({ children }) {
   }
 
   function recordBooking(booking) {
-    setBookings((prev) => [{ ...booking, createdAt: new Date().toISOString() }, ...prev]);
+    const creditsEarned = Math.round(booking.priceUSD * 0.05);
+    setBookings((prev) => [
+      { ...booking, createdAt: new Date().toISOString(), creditsEarned, reviewed: false },
+      ...prev,
+    ]);
+    earnCredits(creditsEarned);
     // Reduce vacancy slightly to simulate inventory moving.
     setHotels((prev) =>
       prev.map((h) =>
@@ -119,6 +146,63 @@ export function AppProvider({ children }) {
     );
   }
 
+  // Reviews — seeded from data, users can add after booking
+  const [reviews, setReviews] = useState(initialReviews);
+  const ratingSummaries = useMemo(() => buildRatingSummaries(reviews), [reviews]);
+
+  function addReview(review) {
+    const id = `r_user_${Math.random().toString(36).slice(2, 9)}`;
+    setReviews((prev) => [{ ...review, id }, ...prev]);
+  }
+
+  function markBookingReviewed(bookingId) {
+    setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, reviewed: true } : b)));
+  }
+
+  // NightDrop Credits — loyalty points earned at 5% of booking value
+  const [credits, setCredits] = useState(() => {
+    try { return parseInt(localStorage.getItem('nd_credits') || '0', 10); }
+    catch { return 0; }
+  });
+
+  function earnCredits(amount) {
+    setCredits((prev) => {
+      const next = prev + amount;
+      localStorage.setItem('nd_credits', String(next));
+      return next;
+    });
+  }
+
+  function spendCredits(amount) {
+    setCredits((prev) => {
+      const next = Math.max(0, prev - amount);
+      localStorage.setItem('nd_credits', String(next));
+      return next;
+    });
+  }
+
+  // Price alerts — notify when a hotel's price drops to or below a target
+  const [priceAlerts, setPriceAlerts] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('nd_alerts') || '[]'); }
+    catch { return []; }
+  });
+
+  function addPriceAlert(hotelId, targetPrice) {
+    setPriceAlerts((prev) => {
+      const next = [...prev.filter((a) => a.hotelId !== hotelId), { hotelId, targetPrice, createdAt: new Date().toISOString() }];
+      localStorage.setItem('nd_alerts', JSON.stringify(next));
+      return next;
+    });
+  }
+
+  function removePriceAlert(hotelId) {
+    setPriceAlerts((prev) => {
+      const next = prev.filter((a) => a.hotelId !== hotelId);
+      localStorage.setItem('nd_alerts', JSON.stringify(next));
+      return next;
+    });
+  }
+
   // Partner leads — captured via the /partner-apply flow
   const [leads, setLeads] = useState([]);
   function addLead(lead) {
@@ -134,6 +218,16 @@ export function AppProvider({ children }) {
     hotels: pricedHotels,
     bookingDate,
     setBookingDate,
+    reviews,
+    ratingSummaries,
+    addReview,
+    markBookingReviewed,
+    credits,
+    earnCredits,
+    spendCredits,
+    priceAlerts,
+    addPriceAlert,
+    removePriceAlert,
     rawHotels: hotels,
     updateHotel,
     now,

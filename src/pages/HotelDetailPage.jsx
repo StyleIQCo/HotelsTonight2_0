@@ -7,6 +7,121 @@ import MarketIntelPanel from '../components/MarketIntelPanel.jsx';
 import PriceSparkline from '../components/PriceSparkline.jsx';
 import { getPerkBadges, makeRoomTypes } from '../lib/pricing.js';
 
+function ReviewsSection({ hotelId }) {
+  const { reviews, ratingSummaries } = useApp();
+  const hotelReviews = reviews.filter((r) => r.hotelId === hotelId);
+  const summary = ratingSummaries[hotelId];
+  const [showAll, setShowAll] = useState(false);
+  const displayed = showAll ? hotelReviews : hotelReviews.slice(0, 3);
+
+  if (hotelReviews.length === 0) return null;
+
+  return (
+    <div className="detail-card" style={{ marginTop: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <h3 style={{ margin: 0 }}>Guest reviews</h3>
+        {summary && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ color: '#ffb84d', fontSize: 18 }}>★</span>
+            <span style={{ fontWeight: 800, fontSize: 16 }}>{summary.avg}</span>
+            <span style={{ color: 'var(--muted)', fontSize: 13 }}>({summary.count} reviews)</span>
+          </div>
+        )}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {displayed.map((r) => (
+          <div key={r.id} className="review-card">
+            <div className="review-header">
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>{r.authorName}</div>
+                {r.authorCity && <div style={{ fontSize: 12, color: 'var(--muted)' }}>{r.authorCity}</div>}
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ color: '#ffb84d', letterSpacing: 1 }}>{'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</div>
+                <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                  {r.stayType && `${r.stayType} · `}{r.date}
+                </div>
+              </div>
+            </div>
+            <p className="review-text">{r.text}</p>
+          </div>
+        ))}
+      </div>
+      {hotelReviews.length > 3 && (
+        <button
+          className="btn-ghost"
+          style={{ marginTop: 14, width: '100%' }}
+          onClick={() => setShowAll((v) => !v)}
+        >
+          {showAll ? 'Show fewer reviews' : `Show all ${hotelReviews.length} reviews`}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function PriceAlertButton({ hotel, pricing }) {
+  const { priceAlerts, addPriceAlert, removePriceAlert } = useApp();
+  const existing = priceAlerts.find((a) => a.hotelId === hotel.id);
+  const [showForm, setShowForm] = useState(false);
+  const [targetPrice, setTargetPrice] = useState(Math.round(pricing.final * 0.85));
+
+  if (existing) {
+    return (
+      <div className="price-alert-active">
+        <span>🎯 Alert set: notify me when ≤ ${existing.targetPrice}/night</span>
+        <button
+          onClick={() => removePriceAlert(hotel.id)}
+          style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, padding: 0 }}
+        >
+          Remove
+        </button>
+      </div>
+    );
+  }
+
+  if (showForm) {
+    return (
+      <div className="price-alert-form">
+        <span style={{ fontSize: 13, color: 'var(--muted)' }}>Alert me when price drops to:</span>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
+          <span style={{ fontWeight: 600 }}>$</span>
+          <input
+            type="number"
+            className="input"
+            style={{ width: 80, padding: '8px 10px' }}
+            value={targetPrice}
+            min={50}
+            max={pricing.rack}
+            onChange={(e) => setTargetPrice(+e.target.value)}
+          />
+          <span style={{ color: 'var(--muted)', fontSize: 13 }}>/night</span>
+          <button
+            className="btn-primary"
+            style={{ padding: '8px 14px', fontSize: 13 }}
+            onClick={() => { addPriceAlert(hotel.id, targetPrice); setShowForm(false); }}
+          >
+            Set alert
+          </button>
+          <button className="btn-ghost" style={{ padding: '8px 12px', fontSize: 13 }} onClick={() => setShowForm(false)}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      className="btn-ghost"
+      style={{ fontSize: 13, padding: '8px 14px', width: '100%', marginTop: 10 }}
+      onClick={() => setShowForm(true)}
+    >
+      🎯 Notify me when price drops
+    </button>
+  );
+}
+
 function PhotoGallery({ images, name }) {
   const [idx, setIdx] = useState(0);
   if (!images || images.length === 0) return null;
@@ -198,6 +313,9 @@ export default function HotelDetailPage() {
             ))}
           </div>
 
+          {/* Guest reviews */}
+          <ReviewsSection hotelId={hotel.id} />
+
           {/* Market Intelligence */}
           <div style={{ marginTop: 16 }}>
             <MarketIntelPanel hotel={hotel} />
@@ -240,7 +358,8 @@ export default function HotelDetailPage() {
             >
               Book {bookingDate} — ${total}
             </button>
-            <div className="cancel-policy">
+            <PriceAlertButton hotel={hotel} pricing={pricing} />
+            <div className="cancel-policy" style={{ marginTop: 10 }}>
               ✅ Free cancellation until 6:00 PM local time
             </div>
             <div className="cancel-policy" style={{ marginTop: 6 }}>

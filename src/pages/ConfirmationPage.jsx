@@ -1,11 +1,12 @@
 import React from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../store.jsx';
 
 export default function ConfirmationPage() {
   const { id } = useParams();
   const { state } = useLocation();
-  const { bookings, hotels } = useApp();
+  const nav = useNavigate();
+  const { bookings, hotels, credits } = useApp();
 
   const booking = state?.booking || bookings.find((b) => b.id === id);
   const hotel = state?.hotel || hotels.find((h) => h.id === booking?.hotelId);
@@ -19,6 +20,8 @@ export default function ConfirmationPage() {
     );
   }
 
+  const creditsEarned = booking.creditsEarned || Math.round(booking.priceUSD * 0.05);
+
   return (
     <div style={{ maxWidth: 580, margin: '40px auto' }}>
       <div className="detail-card" style={{ textAlign: 'center', padding: 32 }}>
@@ -28,9 +31,33 @@ export default function ConfirmationPage() {
           Confirmation <code>{booking.id}</code> sent to {booking.guestEmail}
         </p>
 
+        {/* Credits earned banner */}
         <div
           style={{
-            margin: '22px 0',
+            background: 'rgba(255,184,77,0.12)',
+            border: '1px solid rgba(255,184,77,0.28)',
+            borderRadius: 12,
+            padding: '12px 16px',
+            margin: '18px 0 0',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            textAlign: 'left',
+          }}
+        >
+          <span style={{ fontSize: 28 }}>⭐</span>
+          <div>
+            <div style={{ fontWeight: 700, color: 'var(--warn)' }}>+{creditsEarned} NightDrop Credits earned</div>
+            <div style={{ fontSize: 13, color: 'var(--muted)' }}>
+              Your balance is now {credits.toLocaleString()} credits — use them on your next booking.
+            </div>
+          </div>
+        </div>
+
+        {/* Booking detail card */}
+        <div
+          style={{
+            margin: '18px 0 0',
             padding: 16,
             borderRadius: 12,
             background: 'var(--bg-elev)',
@@ -50,18 +77,39 @@ export default function ConfirmationPage() {
               <div style={{ fontWeight: 700 }}>{hotel.name}</div>
               <div style={{ color: 'var(--muted)', fontSize: 13 }}>{hotel.neighborhood}</div>
               <div style={{ color: 'var(--muted)', fontSize: 13 }}>
-                Check-in tonight · Guest: {booking.guestName}
+                {booking.roomType || 'Standard Room'} · {booking.checkInTime || 'Standard check-in'}
               </div>
+              <div style={{ color: 'var(--muted)', fontSize: 13 }}>Guest: {booking.guestName}</div>
             </div>
           </div>
         </div>
 
-        <div style={{ fontSize: 18, fontWeight: 700 }}>
+        <div style={{ fontSize: 18, fontWeight: 700, marginTop: 16 }}>
           Charged ${booking.priceUSD} to your card ending in ••••
+          {booking.creditsUsed > 0 && (
+            <div style={{ fontSize: 13, fontWeight: 400, color: 'var(--good)', marginTop: 4 }}>
+              ⭐ {booking.creditsUsed} credits applied — you saved ${booking.creditsUsed}
+            </div>
+          )}
         </div>
-        <Link to="/" className="btn-ghost" style={{ marginTop: 20, display: 'inline-block' }}>
-          Find another deal
-        </Link>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 22 }}>
+          <button
+            className="btn-primary"
+            style={{ padding: '13px', fontSize: 15 }}
+            onClick={() => nav(`/review/${booking.id}`, { state: { booking, hotel } })}
+          >
+            ✍️ Write a review — help other travelers
+          </button>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+            <Link to="/my-bookings" className="btn-ghost" style={{ flex: 1, textAlign: 'center', padding: 12 }}>
+              My Bookings
+            </Link>
+            <Link to="/" className="btn-ghost" style={{ flex: 1, textAlign: 'center', padding: 12 }}>
+              Find another deal
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );

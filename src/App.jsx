@@ -11,6 +11,8 @@ import SecretRevealPage from './pages/SecretRevealPage.jsx';
 import PartnerLandingPage from './pages/PartnerLandingPage.jsx';
 import PartnerApplyPage from './pages/PartnerApplyPage.jsx';
 import ProspectDatabasePage from './pages/ProspectDatabasePage.jsx';
+import MyBookingsPage from './pages/MyBookingsPage.jsx';
+import WriteReviewPage from './pages/WriteReviewPage.jsx';
 
 export default function App() {
   return (
@@ -23,6 +25,8 @@ export default function App() {
           <Route path="/secret/:id" element={<SecretRevealPage />} />
           <Route path="/checkout/:id" element={<CheckoutPage />} />
           <Route path="/confirmation/:id" element={<ConfirmationPage />} />
+          <Route path="/my-bookings" element={<MyBookingsPage />} />
+          <Route path="/review/:id" element={<WriteReviewPage />} />
           <Route path="/for-hotels" element={<PartnerLandingPage />} />
           <Route path="/partner-apply" element={<PartnerApplyPage />} />
           <Route path="/partners" element={<PartnerDashboard />} />
