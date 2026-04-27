@@ -8,6 +8,53 @@
 // Discount is computed dynamically in src/lib/pricing.js — it is NOT stored here.
 
 export const initialHotels = [
+  // ───── Bellevue, WA ─────
+  {
+    id: 'h_hyatt_bellevue',
+    name: 'Hyatt Regency Bellevue',
+    neighborhood: 'Downtown, Bellevue',
+    lat: 47.6152, lng: -122.2007,
+    stars: 4,
+    rackRate: 329,
+    vacancyRate: 0.49,
+    totalRooms: 732,
+    latestCheckIn: '2:00 AM',
+    latestCheckInHour: 26,
+    amenities: ['StayFit gym', 'Wintergarden Café', 'Club lounge', 'Connected to Bellevue Square', 'Free Wi-Fi'],
+    image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=70',
+    gallery: [
+      'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=70',
+      'https://images.unsplash.com/photo-1590490360182-c33d57733427?auto=format&fit=crop&w=1200&q=70',
+      'https://images.unsplash.com/photo-1584132967334-10e028bd69f7?auto=format&fit=crop&w=1200&q=70',
+    ],
+    tagline: "Bellevue's landmark tower hotel, sky-bridge connected to Bellevue Square mall and the city's best restaurants.",
+    website: 'https://www.hyatt.com/en-US/hotel/washington/hyatt-regency-bellevue/beabe',
+  },
+  {
+    id: 'h_w_bellevue',
+    name: 'W Bellevue',
+    neighborhood: 'Old Bellevue',
+    lat: 47.6095, lng: -122.2029,
+    stars: 5,
+    rackRate: 469,
+    vacancyRate: 0.38,
+    totalRooms: 245,
+    latestCheckIn: '24 hours',
+    latestCheckInHour: 99,
+    topSecret: true,
+    topSecretDiscount: 0.36,
+    amenities: ['Swestin spa', 'Civility & Unrest restaurant', 'WET rooftop bar', 'Pet friendly', 'Valet'],
+    image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=1200&q=70',
+    gallery: [
+      'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=1200&q=70',
+      'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=1200&q=70',
+      'https://images.unsplash.com/photo-1568084680786-a84f91d1153c?auto=format&fit=crop&w=1200&q=70',
+      'https://images.unsplash.com/photo-1444201983204-c43cbd584d93?auto=format&fit=crop&w=1200&q=70',
+    ],
+    tagline: "W Hotels' design-forward outpost in Old Bellevue — rooftop bar, bold interiors, and some of the best views of the Cascades.",
+    website: 'https://www.marriott.com/hotels/travel/belwh-w-bellevue',
+  },
+
   // ───── Seattle, WA ─────
   {
     id: 'h_edgewater_seattle',
@@ -18,6 +65,8 @@ export const initialHotels = [
     rackRate: 389,
     vacancyRate: 0.52,
     totalRooms: 223,
+    latestCheckIn: '1:00 AM',
+    latestCheckInHour: 25,
     amenities: ['Elliott Bay waterfront', 'Mountainside Rooms', 'Six Seven Restaurant', 'Fire pit lounge', 'Free Wi-Fi'],
     image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=70',
     gallery: [
@@ -38,6 +87,8 @@ export const initialHotels = [
     rackRate: 319,
     vacancyRate: 0.60,
     totalRooms: 97,
+    latestCheckIn: '2:00 AM',
+    latestCheckInHour: 26,
     amenities: ['Shaker + Spear bar', 'Artisan breakfast', 'Pet friendly', 'Complimentary wine hour', 'Fitness center'],
     image: 'https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=1200&q=70',
     gallery: [
@@ -59,6 +110,8 @@ export const initialHotels = [
     rackRate: 895,
     vacancyRate: 0.29,
     totalRooms: 86,
+    latestCheckIn: '2:00 AM',
+    latestCheckInHour: 26,
     topSecret: true,
     topSecretDiscount: 0.38,
     amenities: ['Crosby Bar', 'Private courtyard garden', 'Screening room', 'Spa & gym', 'Free Wi-Fi'],
@@ -81,6 +134,8 @@ export const initialHotels = [
     rackRate: 499,
     vacancyRate: 0.48,
     totalRooms: 338,
+    latestCheckIn: '24 hours',
+    latestCheckInHour: 99,
     amenities: ['Le Bain rooftop nightclub', 'Biergarten', 'Dining room', 'Panoramic Hudson views', 'Gym'],
     image: 'https://images.unsplash.com/photo-1445019980597-93fa8acb246c?auto=format&fit=crop&w=1200&q=70',
     gallery: [
@@ -100,6 +155,8 @@ export const initialHotels = [
     rackRate: 649,
     vacancyRate: 0.35,
     totalRooms: 287,
+    latestCheckIn: '3:00 AM',
+    latestCheckInHour: 27,
     amenities: ['Tom Colicchio\'s Temple Court', 'Bar Beekman', 'Victorian atrium', 'Spa', 'Concierge'],
     image: 'https://images.unsplash.com/photo-1455587734955-081b22074882?auto=format&fit=crop&w=1200&q=70',
     gallery: [
@@ -121,6 +178,8 @@ export const initialHotels = [
     rackRate: 599,
     vacancyRate: 0.44,
     totalRooms: 3027,
+    latestCheckIn: '24 hours',
+    latestCheckInHour: 99,
     topSecret: true,
     topSecretDiscount: 0.40,
     amenities: ['Boulevard Pool', 'Wicked Spoon buffet', 'Marquee Nightclub', 'Spa & hammam', 'Chelsea casino'],
@@ -143,6 +202,8 @@ export const initialHotels = [
     rackRate: 429,
     vacancyRate: 0.57,
     totalRooms: 2716,
+    latestCheckIn: '24 hours',
+    latestCheckInHour: 99,
     amenities: ['Wynn Golf Club', 'Tower Suites pool', 'Lakeside & Wing Lei dining', 'Spa', 'Casino'],
     image: 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=1200&q=70',
     gallery: [
@@ -164,6 +225,8 @@ export const initialHotels = [
     rackRate: 549,
     vacancyRate: 0.34,
     totalRooms: 74,
+    latestCheckIn: '1:00 AM',
+    latestCheckInHour: 25,
     topSecret: true,
     topSecretDiscount: 0.38,
     amenities: ['Tower Bar', 'Rooftop pool & cabanas', 'Art Deco architecture', 'Peloton gym', 'Valet'],
@@ -186,6 +249,8 @@ export const initialHotels = [
     rackRate: 289,
     vacancyRate: 0.53,
     totalRooms: 388,
+    latestCheckIn: '2:00 AM',
+    latestCheckInHour: 26,
     amenities: ['Openaire rooftop pool', 'Ktown BBQ', 'Café Landwer', 'Vinyl library', 'EV charging'],
     image: 'https://images.unsplash.com/photo-1549294413-26f195200c16?auto=format&fit=crop&w=1200&q=70',
     gallery: [
@@ -207,6 +272,8 @@ export const initialHotels = [
     rackRate: 449,
     vacancyRate: 0.55,
     totalRooms: 131,
+    latestCheckIn: '2:00 AM',
+    latestCheckInHour: 26,
     amenities: ['Villon rooftop bar', 'La Bande restaurant', 'Wellness floor', 'Vintage furnishings', 'Free Wi-Fi'],
     image: 'https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=1200&q=70',
     gallery: [
@@ -227,6 +294,8 @@ export const initialHotels = [
     rackRate: 359,
     vacancyRate: 0.41,
     totalRooms: 202,
+    latestCheckIn: '1:00 AM',
+    latestCheckInHour: 25,
     amenities: ['Dirty Habit restaurant & bar', 'Cardio gym', 'Bose sound system', 'Evening turndown', 'Concierge'],
     image: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1200&q=70',
     gallery: [
@@ -248,6 +317,8 @@ export const initialHotels = [
     rackRate: 399,
     vacancyRate: 0.46,
     totalRooms: 311,
+    latestCheckIn: '1:00 AM',
+    latestCheckInHour: 25,
     amenities: ['The Gwen Spa', 'Cabra rooftop restaurant', 'Brindille restaurant', 'Fitness center', 'Club lounge'],
     image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=70',
     gallery: [
@@ -267,6 +338,8 @@ export const initialHotels = [
     rackRate: 489,
     vacancyRate: 0.39,
     totalRooms: 115,
+    latestCheckIn: '2:00 AM',
+    latestCheckInHour: 26,
     amenities: ['Nobu Restaurant', 'Cocktail lounge', 'Spa treatments', 'Personal shopper', 'Free Wi-Fi'],
     image: 'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?auto=format&fit=crop&w=1200&q=70',
     gallery: [

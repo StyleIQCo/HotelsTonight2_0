@@ -28,25 +28,31 @@ const cardStyle = {
   }
 };
 
-const CHECK_IN_OPTIONS = [
-  { id: 'standard',  label: 'Standard check-in',   time: '3:00 PM',  surcharge: 0 },
-  { id: 'early',     label: 'Early check-in',       time: '11:00 AM', surcharge: 25 },
-  { id: 'late_out',  label: 'Late check-out',       time: '12:00 PM next day', surcharge: 15 },
+const ARRIVAL_WINDOWS = [
+  { id: 'early',     emoji: '🌅', label: 'Early check-in',    range: '11 AM – 3 PM',    surcharge: 25,  note: 'Request early access' },
+  { id: 'afternoon', emoji: '🌤️', label: 'Afternoon',         range: '3 PM – 7 PM',     surcharge: 0,   note: 'Standard check-in' },
+  { id: 'evening',   emoji: '🌆', label: 'Evening arrival',   range: '7 PM – 10 PM',    surcharge: -10, note: 'Late Drop applied' },
+  { id: 'night',     emoji: '🌙', label: 'Night arrival',     range: '10 PM – Midnight', surcharge: -20, note: 'Late Drop applied' },
+  { id: 'latenight', emoji: '🌃', label: 'Late night',        range: 'Midnight – 4 AM', surcharge: -25, note: 'Late Drop applied' },
 ];
 
-function CheckoutInner({ hotel, pricing, baseTotal, tax, roomType, creditsToApply }) {
+const LATE_CHECKOUT = { id: 'late_out', label: 'Late check-out (noon)', surcharge: 15 };
+
+function CheckoutInner({ hotel, pricing, baseTotal, tax, roomType, creditsToApply, lockedPrice,
+  arrivalWindow, setArrivalWindow, wantLateCheckout, setWantLateCheckout }) {
   const stripe = useStripe();
   const elements = useElements();
-  const { recordBooking, pushToast, spendCredits } = useApp();
+  const { recordBooking, pushToast, spendCredits, user, tier } = useApp();
   const nav = useNavigate();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [checkInOption, setCheckInOption] = useState('standard');
+  const [name, setName] = useState(user?.name || '');
+  const [email, setEmail] = useState(user?.email || '');
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState(null);
 
-  const surcharge = CHECK_IN_OPTIONS.find((o) => o.id === checkInOption)?.surcharge || 0;
-  const total = baseTotal + surcharge - creditsToApply;
+  const arrivalSurcharge = ARRIVAL_WINDOWS.find((o) => o.id === arrivalWindow)?.surcharge || 0;
+  const lateCheckoutSurcharge = wantLateCheckout ? LATE_CHECKOUT.surcharge : 0;
+  const total = baseTotal + arrivalSurcharge + lateCheckoutSurcharge - creditsToApply;
+  const selectedWindow = ARRIVAL_WINDOWS.find((o) => o.id === arrivalWindow);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -77,13 +83,13 @@ function CheckoutInner({ hotel, pricing, baseTotal, tax, roomType, creditsToAppl
 
     if (creditsToApply > 0) spendCredits(creditsToApply);
 
-    const checkInLabel = CHECK_IN_OPTIONS.find((o) => o.id === checkInOption)?.label || 'Standard check-in';
+    const arrivalLabel = `${selectedWindow.emoji} ${selectedWindow.label} (${selectedWindow.range})${wantLateCheckout ? ' · Late check-out' : ''}`;
     const booking = {
       id: `bk_${Math.random().toString(36).slice(2, 9)}`,
       hotelId: hotel.id,
       hotelName: hotel.name,
       roomType: roomType?.name || 'Standard Room',
-      checkInTime: checkInLabel,
+      checkInTime: arrivalLabel,
       guestName: name,
       guestEmail: email,
       priceUSD: total,
@@ -125,31 +131,90 @@ function CheckoutInner({ hotel, pricing, baseTotal, tax, roomType, creditsToAppl
       </div>
 
       <div className="field">
-        <label style={{ display: 'block', marginBottom: 10, fontWeight: 600 }}>Check-in preference</label>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {CHECK_IN_OPTIONS.map((opt) => (
-            <label
-              key={opt.id}
-              className={`checkin-option${checkInOption === opt.id ? ' selected' : ''}`}
-            >
-              <input
-                type="radio"
-                name="checkin"
-                value={opt.id}
-                checked={checkInOption === opt.id}
-                onChange={() => setCheckInOption(opt.id)}
-                style={{ display: 'none' }}
-              />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>{opt.label}</div>
-                <div style={{ fontSize: 12, color: 'var(--muted)' }}>{opt.time}</div>
-              </div>
-              <div style={{ fontWeight: 700, fontSize: 14, color: opt.surcharge > 0 ? 'var(--warn)' : 'var(--good)' }}>
-                {opt.surcharge > 0 ? `+$${opt.surcharge}` : 'Free'}
-              </div>
-            </label>
-          ))}
+        <label style={{ display: 'block', marginBottom: 4, fontWeight: 600 }}>When will you arrive?</label>
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>
+          Arrive late and pay less — your room is guaranteed regardless.
         </div>
+        <div className="arrival-grid">
+          {ARRIVAL_WINDOWS.map((opt) => {
+            const isLate = opt.surcharge < 0;
+            const isSel = arrivalWindow === opt.id;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                className={`arrival-option${isSel ? ' selected' : ''}`}
+                onClick={() => setArrivalWindow(opt.id)}
+              >
+                <span className="arrival-option-emoji">{opt.emoji}</span>
+                <span className="arrival-option-label">{opt.label}</span>
+                <span className="arrival-option-range">{opt.range}</span>
+                <span
+                  className="arrival-option-price"
+                  style={{ color: isLate ? 'var(--good)' : opt.surcharge > 0 ? 'var(--warn)' : 'var(--muted)' }}
+                >
+                  {opt.surcharge < 0 ? `−$${Math.abs(opt.surcharge)} Late Drop` : opt.surcharge > 0 ? `+$${opt.surcharge}` : 'Included'}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {selectedWindow?.surcharge < 0 && (
+          <div className="late-drop-callout">
+            🌙 Late Drop active — you save ${Math.abs(selectedWindow.surcharge)} by arriving {selectedWindow.label.toLowerCase()}. Your room is guaranteed until {hotel.latestCheckIn || '2:00 AM'}.
+          </div>
+        )}
+      </div>
+
+      <div className="field">
+        <label className={`checkin-option${wantLateCheckout ? ' selected' : ''}`} style={{ cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={wantLateCheckout}
+            onChange={(e) => setWantLateCheckout(e.target.checked)}
+            style={{ display: 'none' }}
+          />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>🌅 Late check-out</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)' }}>Check out by noon next day</div>
+          </div>
+          <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--warn)' }}>+$15</div>
+        </label>
+      </div>
+
+      {/* Apple Pay / Google Pay simulation */}
+      <div style={{ marginBottom: 12 }}>
+        <button
+          type="button"
+          className="apple-pay-btn"
+          onClick={() => {
+            // Simulate instant payment — in production this triggers the Payment Request API
+            setSubmitting(true);
+            setTimeout(() => {
+              if (creditsToApply > 0) spendCredits(creditsToApply);
+              const arrivalLabel = `${selectedWindow.emoji} ${selectedWindow.label} (${selectedWindow.range})${wantLateCheckout ? ' · Late check-out' : ''}`;
+              const booking = {
+                id: `bk_${Math.random().toString(36).slice(2, 9)}`,
+                hotelId: hotel.id,
+                hotelName: hotel.name,
+                roomType: roomType?.name || 'Standard Room',
+                checkInTime: arrivalLabel,
+                guestName: name || user?.name || 'Guest',
+                guestEmail: email || user?.email || '',
+                priceUSD: total,
+                creditsUsed: creditsToApply,
+                paymentMethodId: 'pm_applepay_demo',
+              };
+              recordBooking(booking);
+              pushToast({ title: 'Booked via Apple Pay ✓', body: `You're in at ${hotel.name} tonight.` });
+              nav(`/confirmation/${booking.id}`, { state: { booking, hotel } });
+            }, 700);
+          }}
+          disabled={submitting}
+        >
+           Pay with Apple Pay
+        </button>
+        <div className="or-divider"><span>or pay by card</span></div>
       </div>
 
       <div className="field">
@@ -188,9 +253,13 @@ function CheckoutInner({ hotel, pricing, baseTotal, tax, roomType, creditsToAppl
 export default function CheckoutPage() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
-  const { hotels, bookingDate, credits } = useApp();
+  const { hotels, bookingDate, credits, getActiveLock } = useApp();
   const hotel = hotels.find((h) => h.id === id);
   const [useCredits, setUseCredits] = useState(false);
+  const [arrivalWindow, setArrivalWindow] = useState('afternoon');
+  const [wantLateCheckout, setWantLateCheckout] = useState(false);
+
+  const activeLock = hotel ? getActiveLock(hotel.id) : null;
 
   const totals = useMemo(() => {
     if (!hotel) return null;
@@ -198,12 +267,12 @@ export default function CheckoutPage() {
     const roomTypes = makeRoomTypes(hotel);
     const roomId = searchParams.get('room') || 'standard';
     const roomType = roomTypes.find((r) => r.id === roomId) || roomTypes[0];
-    const adjustedFinal = Math.round(p.final * roomType.multiplier);
-    const tax = Math.round(adjustedFinal * 0.14);
-    const baseTotal = adjustedFinal + tax;
+    const baseRate = activeLock ? activeLock.price : Math.round(p.final * roomType.multiplier);
+    const tax = Math.round(baseRate * 0.14);
+    const baseTotal = baseRate + tax - (activeLock?.deposit || 0);
     const maxCredits = Math.min(credits, Math.round(baseTotal * 0.20));
-    return { pricing: p, tax, baseTotal, roomType, adjustedFinal, maxCredits };
-  }, [hotel, searchParams, credits]);
+    return { pricing: p, tax, baseTotal, roomType, adjustedFinal: baseRate, maxCredits };
+  }, [hotel, searchParams, credits, activeLock]);
 
   if (!hotel) {
     return (
@@ -218,6 +287,11 @@ export default function CheckoutPage() {
     <div className="detail-grid" style={{ marginTop: 20 }}>
       <div className="detail-card">
         <h2 style={{ marginTop: 0 }}>Confirm and pay</h2>
+        {activeLock && (
+          <div style={{ background: 'rgba(55,214,160,0.08)', border: '1px solid rgba(55,214,160,0.25)', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: 'var(--good)', marginBottom: 16 }}>
+            🔒 Locked rate applied — ${activeLock.price}/night{activeLock.deposit > 0 ? ` (−$${activeLock.deposit} deposit already paid)` : ' (free with your tier)'}
+          </div>
+        )}
         {/* Credits toggle */}
         {credits > 0 && (
           <div className="credits-apply-row">
@@ -247,6 +321,10 @@ export default function CheckoutPage() {
               baseTotal={totals.baseTotal}
               roomType={totals.roomType}
               creditsToApply={useCredits ? totals.maxCredits : 0}
+              arrivalWindow={arrivalWindow}
+              setArrivalWindow={setArrivalWindow}
+              wantLateCheckout={wantLateCheckout}
+              setWantLateCheckout={setWantLateCheckout}
             />
           </Elements>
         ) : (
@@ -278,27 +356,55 @@ export default function CheckoutPage() {
               <span>Room type</span>
               <span style={{ color: 'var(--muted)' }}>{totals.roomType?.name}</span>
             </div>
-            <div className="checkout-summary">
-              <span>Nightly rate</span>
-              <span>${totals.adjustedFinal}</span>
-            </div>
-            <div className="checkout-summary">
-              <span>Taxes & fees</span>
-              <span>${totals.tax}</span>
-            </div>
-            {useCredits && totals.maxCredits > 0 && (
-              <div className="checkout-summary" style={{ color: 'var(--good)' }}>
-                <span>⭐ Credits applied</span>
-                <span>−${totals.maxCredits}</span>
-              </div>
-            )}
-            <div className="checkout-summary" style={{ fontWeight: 700, borderTop: '1px solid var(--border)', paddingTop: 10, marginTop: 6 }}>
-              <span>Total</span>
-              <span>${totals.baseTotal - (useCredits ? totals.maxCredits : 0)}</span>
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--warn)', marginTop: 8 }}>
-              ⭐ You'll earn ~{Math.round(totals.baseTotal * 0.05)} credits from this booking
-            </div>
+            {(() => {
+              const arrSurcharge = ARRIVAL_WINDOWS.find((o) => o.id === arrivalWindow)?.surcharge || 0;
+              const lcoSurcharge = wantLateCheckout ? LATE_CHECKOUT.surcharge : 0;
+              const creditsOff = useCredits ? totals.maxCredits : 0;
+              const grandTotal = totals.baseTotal + arrSurcharge + lcoSurcharge - creditsOff;
+              return (
+                <>
+                  <div className="checkout-summary">
+                    <span>Nightly rate</span>
+                    <span>${totals.adjustedFinal}</span>
+                  </div>
+                  {arrSurcharge < 0 && (
+                    <div className="checkout-summary" style={{ color: 'var(--good)' }}>
+                      <span>🌙 Late Drop</span>
+                      <span>−${Math.abs(arrSurcharge)}</span>
+                    </div>
+                  )}
+                  {arrSurcharge > 0 && (
+                    <div className="checkout-summary" style={{ color: 'var(--warn)' }}>
+                      <span>🌅 Early check-in</span>
+                      <span>+${arrSurcharge}</span>
+                    </div>
+                  )}
+                  {lcoSurcharge > 0 && (
+                    <div className="checkout-summary" style={{ color: 'var(--warn)' }}>
+                      <span>🌅 Late check-out</span>
+                      <span>+${lcoSurcharge}</span>
+                    </div>
+                  )}
+                  <div className="checkout-summary">
+                    <span>Taxes & fees</span>
+                    <span>${totals.tax}</span>
+                  </div>
+                  {creditsOff > 0 && (
+                    <div className="checkout-summary" style={{ color: 'var(--good)' }}>
+                      <span>⭐ Credits applied</span>
+                      <span>−${creditsOff}</span>
+                    </div>
+                  )}
+                  <div className="checkout-summary" style={{ fontWeight: 700, borderTop: '1px solid var(--border)', paddingTop: 10, marginTop: 6 }}>
+                    <span>Total</span>
+                    <span>${grandTotal}</span>
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--warn)', marginTop: 8 }}>
+                    ⭐ You'll earn ~{Math.round(grandTotal * 0.05)} credits from this booking
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       </aside>

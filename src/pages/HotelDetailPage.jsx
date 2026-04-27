@@ -186,7 +186,7 @@ function RoomTypePicker({ roomTypes, selected, pricing, onChange }) {
 export default function HotelDetailPage() {
   const { id } = useParams();
   const nav = useNavigate();
-  const { hotels, userLocation, favorites, toggleFavorite, bookingDate } = useApp();
+  const { hotels, userLocation, favorites, toggleFavorite, bookingDate, lockPrice, getActiveLock, flashDrops, tier } = useApp();
   const hotel = hotels.find((h) => h.id === id);
 
   const [selectedRoom, setSelectedRoom] = useState('standard');
@@ -203,12 +203,16 @@ export default function HotelDetailPage() {
   const { pricing } = hotel;
   const roomTypes = makeRoomTypes(hotel);
   const roomType = roomTypes.find((r) => r.id === selectedRoom) || roomTypes[0];
+  const activeLock = getActiveLock(hotel.id);
+  const flashDrop = flashDrops.find((f) => f.hotelId === hotel.id);
+  const displayFinal = activeLock ? activeLock.price : (flashDrop ? flashDrop.flashPrice : Math.round(pricing.final * roomType.multiplier));
   const adjustedFinal = Math.round(pricing.final * roomType.multiplier);
   const adjustedRack = Math.round(pricing.rack * roomType.multiplier);
-  const tax = Math.round(adjustedFinal * 0.14);
-  const total = adjustedFinal + tax;
+  const tax = Math.round(displayFinal * 0.14);
+  const total = displayFinal + tax;
   const isFav = favorites.has(hotel.id);
   const perks = getPerkBadges(hotel.amenities, 6);
+  const lockIsFree = tier === 'silver' || tier === 'gold' || tier === 'platinum';
 
   // Build gallery: use hotel.gallery if present, else fall back to main image only
   const galleryImages = hotel.gallery?.length ? hotel.gallery : [hotel.image];
@@ -311,6 +315,10 @@ export default function HotelDetailPage() {
                 </span>
               </div>
             ))}
+            <div className="checkout-summary" style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+              <span style={{ color: 'var(--muted)', fontSize: 13 }}>🌙 Arriving after 7 PM?</span>
+              <span style={{ color: 'var(--good)', fontWeight: 700, fontSize: 13 }}>Save up to $25 more</span>
+            </div>
           </div>
 
           {/* Guest reviews */}
@@ -351,13 +359,54 @@ export default function HotelDetailPage() {
               <span>Total due {bookingDate}</span>
               <span>${total}</span>
             </div>
+            {hotel.latestCheckIn && (
+              <div className="late-arrival-guarantee">
+                <div className="late-arrival-guarantee-title">
+                  🌙 Late Arrival Guaranteed
+                </div>
+                <div className="late-arrival-guarantee-body">
+                  Room held until{' '}
+                  <strong>{hotel.latestCheckIn === '24 hours' ? 'any hour — 24/7 front desk' : hotel.latestCheckIn}</strong>.
+                  {' '}Arrive when you're ready and pay less for arriving late.
+                </div>
+              </div>
+            )}
+            {flashDrop && !activeLock && (
+              <div style={{ background: 'rgba(255,77,109,0.1)', border: '1px solid rgba(255,77,109,0.3)', borderRadius: 8, padding: '8px 12px', fontSize: 13, color: 'var(--accent)', marginBottom: 10, fontWeight: 600 }}>
+                ⚡ Flash Drop: extra 15% off for {flashDrop.minutesLeft} more min
+              </div>
+            )}
+            {activeLock && (
+              <div style={{ background: 'rgba(55,214,160,0.08)', border: '1px solid rgba(55,214,160,0.25)', borderRadius: 8, padding: '8px 12px', fontSize: 13, color: 'var(--good)', marginBottom: 10 }}>
+                🔒 Rate locked — ${activeLock.price}/night guaranteed
+              </div>
+            )}
             <button
               className="btn-primary"
-              style={{ marginTop: 16, width: '100%', padding: '14px' }}
+              style={{ marginTop: 4, width: '100%', padding: '14px' }}
               onClick={handleBook}
             >
               Book {bookingDate} — ${total}
             </button>
+
+            {!activeLock && (
+              <button
+                className="btn-ghost"
+                style={{ width: '100%', marginTop: 8, fontSize: 13, padding: '10px' }}
+                onClick={() => lockPrice(hotel.id, displayFinal)}
+              >
+                🔒 Lock this rate — {lockIsFree ? 'free with your tier' : '$10 · 2 hrs'}
+              </button>
+            )}
+
+            <Link
+              to="/groups/new"
+              className="btn-ghost"
+              style={{ display: 'block', textAlign: 'center', width: '100%', marginTop: 8, fontSize: 13, padding: '10px', boxSizing: 'border-box' }}
+            >
+              👥 Plan a group trip
+            </Link>
+
             <PriceAlertButton hotel={hotel} pricing={pricing} />
             <div className="cancel-policy" style={{ marginTop: 10 }}>
               ✅ Free cancellation until 6:00 PM local time

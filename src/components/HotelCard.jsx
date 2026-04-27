@@ -94,6 +94,11 @@ export default function HotelCard({ hotel, distanceMi }) {
           )}
           <span className="viewers">{viewers} people looking</span>
         </div>
+        {hotel.latestCheckIn && (
+          <div className="late-checkin-badge">
+            🌙 Guaranteed until {hotel.latestCheckIn === '24 hours' ? '24 hrs' : hotel.latestCheckIn}
+          </div>
+        )}
       </div>
     </Link>
   );

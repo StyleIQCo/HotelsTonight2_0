@@ -218,6 +218,40 @@ export const initialReviews = [
     text: 'Magnificent Mile location is excellent for Chicago business trips — easy access to the Loop, great walkability. The Art Deco exterior is impressive. Club lounge breakfast is above average for the category.',
   },
 
+  // ─── Hyatt Regency Bellevue ─────────────────────────────────────────
+  {
+    id: 'r_hyatt_bel1', hotelId: 'h_hyatt_bellevue',
+    authorName: 'James O.', authorCity: 'Seattle, WA',
+    rating: 5, date: '2026-03-22', stayType: 'Business',
+    text: 'The direct skybridge to Bellevue Square is an underrated perk — I finished a dinner meeting and was back in my room in under two minutes. Rooms are spacious, beds are excellent, and the Regency Club lounge is genuinely good. NightDrop had it almost 40% off rack rate.',
+  },
+  {
+    id: 'r_hyatt_bel2', hotelId: 'h_hyatt_bellevue',
+    authorName: 'Sarah K.', authorCity: 'Portland, OR',
+    rating: 4, date: '2026-02-14', stayType: 'Couple',
+    text: 'Came up for a Valentine\'s weekend and was impressed. The hotel is massive but never felt impersonal. Lincoln South Kitchen has solid happy hour specials and the city-view rooms at this price point are hard to beat in the Eastside.',
+  },
+  {
+    id: 'r_hyatt_bel3', hotelId: 'h_hyatt_bellevue',
+    authorName: 'Ryan C.', authorCity: 'San Jose, CA',
+    rating: 4, date: '2026-01-30', stayType: 'Business',
+    text: 'Perfect for tech conferences in Bellevue. The conference facilities are top-tier and the rooms are quiet despite the size of the property. Got it on NightDrop for a last-minute Microsoft meeting and it was genuinely good value.',
+  },
+
+  // ─── W Bellevue ─────────────────────────────────────────────────────
+  {
+    id: 'r_w_bel1', hotelId: 'h_w_bellevue',
+    authorName: 'Alexis M.', authorCity: 'Los Angeles, CA',
+    rating: 5, date: '2026-03-08', stayType: 'Couple',
+    text: 'Didn\'t expect Bellevue to have a hotel this cool. The WXYZ Bar has a serious cocktail program and the Whatever/Whenever service is actually responsive — they found me a late-night ramen spot at midnight and had the address texted in ten minutes. Spectacular rooms.',
+  },
+  {
+    id: 'r_w_bel2', hotelId: 'h_w_bellevue',
+    authorName: 'Nina P.', authorCity: 'New York, NY',
+    rating: 5, date: '2026-02-20', stayType: 'Business',
+    text: 'The W has a completely different energy from every other Bellevue hotel — it feels like a hotel that belongs in a major metro. The heated pool deck is stunning, the gym is proper (not hotel-gym), and the rooms are some of the nicest I\'ve stayed in anywhere. NightDrop price was exceptional.',
+  },
+
   // ─── Nobu Hotel Chicago ─────────────────────────────────────────────
   {
     id: 'r_nobu_ch1', hotelId: 'h_nobu_chicago',

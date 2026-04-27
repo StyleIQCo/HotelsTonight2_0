@@ -2,7 +2,9 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState 
 import { initialHotels } from './data/hotels.js';
 import { initialProspects } from './data/prospects.js';
 import { initialReviews, buildRatingSummaries } from './data/reviews.js';
-import { priceHotel, PRICING_DEFAULTS } from './lib/pricing.js';
+import { seedTransfers } from './data/seedTransfers.js';
+import { priceHotel, PRICING_DEFAULTS, distanceMiles } from './lib/pricing.js';
+import { getTier, getCreditsRate } from './lib/loyalty.js';
 
 function seedViewerCount(hotelId) {
   const minuteBlock = Math.floor(new Date().getMinutes() / 10);
@@ -19,12 +21,31 @@ export function AppProvider({ children }) {
   const [hotels, setHotels] = useState(initialHotels);
   const [simulatedHour, setSimulatedHour] = useState(() => new Date().getHours());
   const [pricingConfig, setPricingConfig] = useState(PRICING_DEFAULTS);
-  const [bookingDate, setBookingDate] = useState('tonight'); // 'tonight' | 'tomorrow'
+  const [bookingDate, setBookingDate] = useState('tonight');
   const [userLocation, setUserLocation] = useState(null);
-  const [bookings, setBookings] = useState([]); // [{ id, hotelId, guestName, priceUSD, createdAt }]
+  const [bookings, setBookings] = useState([]);
   const [toasts, setToasts] = useState([]);
   const [notificationsOn, setNotificationsOn] = useState(true);
-  const lastAlertedRef = useRef(new Set()); // hotelIds we've already alerted on
+  const lastAlertedRef = useRef(new Set());
+
+  // ── Auth ──────────────────────────────────────────────────────────
+  const [user, setUser] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('nd_user') || 'null'); } catch { return null; }
+  });
+  const [showAuth, setShowAuth] = useState(false);
+
+  // ── Groups ────────────────────────────────────────────────────────
+  const [groups, setGroups] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('nd_groups') || '[]'); } catch { return []; }
+  });
+
+  // ── Price Locks ───────────────────────────────────────────────────
+  const [priceLocks, setPriceLocks] = useState(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem('nd_price_locks') || '[]');
+      return raw.filter((l) => new Date(l.expiresAt) > new Date());
+    } catch { return []; }
+  });
 
   // Real-time minute tracking for countdown timers (updates every 30s)
   const [realMinute, setRealMinute] = useState(() => new Date().getMinutes());
@@ -59,6 +80,35 @@ export function AppProvider({ children }) {
     () => hotels.map((h) => ({ ...h, pricing: priceHotel(h, now, pricingConfig, bookingDate === 'tomorrow') })),
     [hotels, now, pricingConfig, bookingDate]
   );
+
+  // ── Flash Drops — 2 hotels discounted extra 15% during first 30 min of each hour
+  const flashDrops = useMemo(() => {
+    if (realMinute >= 30) return [];
+    const eligible = pricedHotels.filter((h) => !h.topSecret);
+    if (eligible.length < 2) return [];
+    const seed = simulatedHour * 31 + 7;
+    const scored = eligible.map((h) => ({
+      hotel: h,
+      score: h.id.split('').reduce((s, c, i) => s + c.charCodeAt(0) * (seed + i * 3), 0) % 1000,
+    })).sort((a, b) => b.score - a.score);
+    return scored.slice(0, 2).map(({ hotel }) => ({
+      hotelId: hotel.id,
+      hotelName: hotel.name,
+      extraDiscount: 0.15,
+      minutesLeft: 30 - realMinute,
+      flashPrice: Math.round(hotel.pricing.final * 0.85),
+    }));
+  }, [pricedHotels, simulatedHour, realMinute]);
+
+  // ── Loyalty tier — computed from total spend across all bookings
+  const totalSpend = useMemo(() => bookings.reduce((s, b) => s + (b.priceUSD || 0), 0), [bookings]);
+  const tier = useMemo(() => getTier(totalSpend), [totalSpend]);
+
+  // ── Walk-in mode — user is physically near hotels
+  const walkInMode = useMemo(() => {
+    if (!userLocation) return false;
+    return pricedHotels.some((h) => h.lat && h.lng && distanceMiles(userLocation, { lat: h.lat, lng: h.lng }) < 5);
+  }, [userLocation, pricedHotels]);
 
   // Price alert engine: fire toast when a hotel price drops to / below target
   const alertedRef = useRef(new Set());
@@ -114,8 +164,73 @@ export function AppProvider({ children }) {
     setHotels((prev) => prev.map((h) => (h.id === id ? { ...h, ...patch } : h)));
   }
 
+  // ── Auth functions ────────────────────────────────────────────────
+  function signUp(name, email, referralCode) {
+    const id = `u_${Math.random().toString(36).slice(2, 9)}`;
+    const code = `${name.split(' ')[0].toUpperCase().slice(0, 6)}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const newUser = { id, name, email, referralCode: code, joinedAt: new Date().toISOString() };
+    setUser(newUser);
+    localStorage.setItem('nd_user', JSON.stringify(newUser));
+    setShowAuth(false);
+    earnCredits(100);
+    if (referralCode) earnCredits(100);
+    pushToast({ title: `Welcome, ${name}! 🎉`, body: `+${referralCode ? 200 : 100} welcome credits added.` });
+    return newUser;
+  }
+
+  function signOut() {
+    setUser(null);
+    localStorage.removeItem('nd_user');
+  }
+
+  // ── Groups ────────────────────────────────────────────────────────
+  function createGroup(data) {
+    const id = `grp_${Math.random().toString(36).slice(2, 9)}`;
+    const group = {
+      ...data, id,
+      createdAt: new Date().toISOString(),
+      members: [{ name: data.organizerName, email: data.organizerEmail, status: 'confirmed', joinedAt: new Date().toISOString() }],
+    };
+    setGroups((prev) => {
+      const next = [group, ...prev];
+      localStorage.setItem('nd_groups', JSON.stringify(next));
+      return next;
+    });
+    return id;
+  }
+
+  function joinGroup(groupId, name, email) {
+    setGroups((prev) => {
+      const next = prev.map((g) => g.id !== groupId ? g : {
+        ...g,
+        members: [...g.members.filter((m) => m.email !== email), { name, email, status: 'confirmed', joinedAt: new Date().toISOString() }],
+      });
+      localStorage.setItem('nd_groups', JSON.stringify(next));
+      return next;
+    });
+  }
+
+  // ── Price locks ───────────────────────────────────────────────────
+  function lockPrice(hotelId, price) {
+    const id = `lock_${Math.random().toString(36).slice(2, 9)}`;
+    const hotel = pricedHotels.find((h) => h.id === hotelId);
+    const isFree = tier === 'silver' || tier === 'gold' || tier === 'platinum';
+    const lock = { id, hotelId, price, deposit: isFree ? 0 : 10, lockedAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString() };
+    setPriceLocks((prev) => {
+      const next = [...prev.filter((l) => l.hotelId !== hotelId), lock];
+      localStorage.setItem('nd_price_locks', JSON.stringify(next));
+      return next;
+    });
+    pushToast({ title: '🔒 Rate locked for 2 hours', body: `$${price}/night at ${hotel?.name}. ${isFree ? 'Free with your tier!' : '$10 deposit applied at checkout.'}` });
+  }
+
+  function getActiveLock(hotelId) {
+    return priceLocks.find((l) => l.hotelId === hotelId && new Date(l.expiresAt) > new Date()) || null;
+  }
+
   function recordBooking(booking) {
-    const creditsEarned = Math.round(booking.priceUSD * 0.05);
+    const rate = getCreditsRate(tier);
+    const creditsEarned = Math.round(booking.priceUSD * rate);
     setBookings((prev) => [
       { ...booking, createdAt: new Date().toISOString(), creditsEarned, reviewed: false },
       ...prev,
@@ -203,6 +318,138 @@ export function AppProvider({ children }) {
     });
   }
 
+  // NightDrop Exchange — peer-to-peer booking transfer marketplace
+  const [transfers, setTransfers] = useState(seedTransfers);
+  const EXCHANGE_FEE = 0.10; // 10% NightDrop cut on resales
+
+  function listForTransfer(bookingId, listPrice, sellerNote) {
+    const booking = bookings.find((b) => b.id === bookingId);
+    const hotel = pricedHotels.find((h) => h.id === booking?.hotelId);
+    if (!booking || !hotel) return;
+
+    const transferId = `tx_${Math.random().toString(36).slice(2, 9)}`;
+    setTransfers((prev) => [
+      {
+        id: transferId,
+        bookingId,
+        hotelId: hotel.id,
+        hotelName: hotel.name,
+        neighborhood: hotel.neighborhood,
+        hotelImage: hotel.image,
+        roomType: booking.roomType || 'Standard Room',
+        checkInTime: booking.checkInTime || 'Standard check-in (3 PM)',
+        originalPrice: booking.priceUSD,
+        listPrice,
+        sellerName: booking.guestName,
+        sellerNote: sellerNote || '',
+        listedAt: new Date().toISOString(),
+        status: 'available',
+        checkInDate: new Date().toISOString().slice(0, 10),
+      },
+      ...prev,
+    ]);
+    // Mark the source booking as listed
+    setBookings((prev) =>
+      prev.map((b) => (b.id === bookingId ? { ...b, listedOnExchange: transferId } : b))
+    );
+  }
+
+  function cancelTransferListing(transferId) {
+    const tx = transfers.find((t) => t.id === transferId);
+    setTransfers((prev) => prev.filter((t) => t.id !== transferId));
+    if (tx?.bookingId) {
+      setBookings((prev) =>
+        prev.map((b) => (b.id === tx.bookingId ? { ...b, listedOnExchange: null } : b))
+      );
+    }
+  }
+
+  function buyTransfer(transferId, buyerName, buyerEmail) {
+    const tx = transfers.find((t) => t.id === transferId);
+    if (!tx || tx.status !== 'available') return null;
+
+    // Mark transfer sold
+    setTransfers((prev) =>
+      prev.map((t) => (t.id === transferId ? { ...t, status: 'sold', soldAt: new Date().toISOString() } : t))
+    );
+
+    // Mark original booking as transferred
+    if (tx.bookingId) {
+      setBookings((prev) =>
+        prev.map((b) => (b.id === tx.bookingId ? { ...b, transferred: true, listedOnExchange: null } : b))
+      );
+    }
+
+    // Create a new booking for the buyer
+    const newBookingId = `bk_${Math.random().toString(36).slice(2, 9)}`;
+    const creditsEarned = Math.round(tx.listPrice * 0.05);
+    setBookings((prev) => [
+      {
+        id: newBookingId,
+        hotelId: tx.hotelId,
+        hotelName: tx.hotelName,
+        roomType: tx.roomType,
+        checkInTime: tx.checkInTime,
+        guestName: buyerName,
+        guestEmail: buyerEmail,
+        priceUSD: tx.listPrice,
+        creditsEarned,
+        reviewed: false,
+        transferredFrom: transferId,
+        createdAt: new Date().toISOString(),
+      },
+      ...prev,
+    ]);
+    earnCredits(creditsEarned);
+    pushToast({
+      title: `Booking transferred! You're in at ${tx.hotelName}`,
+      body: `Confirmation sent to ${buyerEmail}. ⭐ +${creditsEarned} credits earned.`,
+    });
+    return newBookingId;
+  }
+
+  // Night Out bundle bookings — hotel + dinner + experience combos
+  const [bundleBookings, setBundleBookings] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('nd_bundle_bookings') || '[]'); }
+    catch { return []; }
+  });
+
+  function bookBundle(bundle, hotelPrice, guestName, guestEmail, guests, dinnerTime, totalUSD) {
+    const id = `nb_${Math.random().toString(36).slice(2, 9)}`;
+    const creditsEarned = Math.round(totalUSD * 0.05);
+    const booking = {
+      id,
+      bundleId: bundle.id,
+      bundleName: bundle.name,
+      city: bundle.city,
+      hotelId: bundle.hotelId,
+      hotelPrice,
+      dinnerRestaurant: bundle.dinner.restaurant,
+      dinnerCuisine: bundle.dinner.cuisine,
+      dinnerTime,
+      experienceName: bundle.experience.name,
+      experienceType: bundle.experience.type,
+      experienceTime: bundle.experience.time,
+      guestName,
+      guestEmail,
+      guests,
+      totalUSD,
+      creditsEarned,
+      createdAt: new Date().toISOString(),
+    };
+    setBundleBookings((prev) => {
+      const next = [booking, ...prev];
+      localStorage.setItem('nd_bundle_bookings', JSON.stringify(next));
+      return next;
+    });
+    earnCredits(creditsEarned);
+    pushToast({
+      title: `Night booked: ${bundle.name}`,
+      body: `Dinner at ${bundle.dinner.restaurant} + ${bundle.experience.name}. ⭐ +${creditsEarned} credits.`,
+    });
+    return id;
+  }
+
   // Partner leads — captured via the /partner-apply flow
   const [leads, setLeads] = useState([]);
   function addLead(lead) {
@@ -218,6 +465,11 @@ export function AppProvider({ children }) {
     hotels: pricedHotels,
     bookingDate,
     setBookingDate,
+    transfers,
+    EXCHANGE_FEE,
+    listForTransfer,
+    cancelTransferListing,
+    buyTransfer,
     reviews,
     ratingSummaries,
     addReview,
@@ -248,6 +500,20 @@ export function AppProvider({ children }) {
     favorites,
     toggleFavorite,
     viewerCount: seedViewerCount,
+    // Auth
+    user, showAuth, setShowAuth, signUp, signOut,
+    // Groups
+    groups, createGroup, joinGroup,
+    // Flash drops
+    flashDrops,
+    // Price locks
+    priceLocks, lockPrice, getActiveLock,
+    // Loyalty
+    tier, totalSpend,
+    // Walk-in mode
+    walkInMode,
+    bundleBookings,
+    bookBundle,
     leads,
     addLead,
     prospects,
